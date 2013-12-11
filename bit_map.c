@@ -2,7 +2,7 @@
 
 #include <stdlib.h>
 #include "handy.h"
-#include "acidwarp.h"
+#include "bit_map.h"
 
 /* Bit Map is 2 Bits per pixel, with 4 pixels per byte. The 4 pixels are
  * in a horizontal row. I.e. 1234 NOT 1 NOR 4
@@ -11,7 +11,7 @@
  *                                    4     1
  */
 
-UCHAR far TITLE_DATA [(X_TITLE * Y_TITLE / 4)] =
+UCHAR TITLE_DATA [(X_TITLE * Y_TITLE / 4)] =
 { 
 	 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85,
 	 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85,
@@ -118,8 +118,7 @@ UCHAR far TITLE_DATA [(X_TITLE * Y_TITLE / 4)] =
  * appropriate for the current palette. See 'switch (bits)' below.
  */
 
-void bit_map_uncompress (UCHAR far *buf_graf, UCHAR far *bit_data,
-								 int x_map, int y_map, int xmax, int ymax)
+void bit_map_uncompress (UCHAR *buf_graf, UCHAR *bit_data, int x_map, int y_map, int xmax, int ymax)
 {
 	int x, y, tx, ty;
 
@@ -229,7 +228,7 @@ void bit_map_uncompress (UCHAR far *buf_graf, UCHAR far *bit_data,
 	}
 }
 
-void writeBitmapImageToArray (UCHAR far *buf_graf, int image_number, int xmax, int ymax)
+void writeBitmapImageToArray (UCHAR *buf_graf, int image_number, int xmax, int ymax)
 {
 	switch (image_number)
 	{

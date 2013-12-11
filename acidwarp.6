@@ -1,0 +1,59 @@
+.TH ACIDWARP 6 "August 1996"
+.SH NAME
+acidwarp \- eye\-candy for the LINUX-Console
+.SH SYNOPSIS
+.B acidwarp
+[
+.B options
+] 
+.SH DESCRIPTION
+.B acidwarp
+is an eye\-candy program that runs on the LINUX-Console. To access the VGA-modes, 
+.B acidwarp
+uses SVGAlib. Because the SVGALIB needs read and write permissions to /dev/mem (that should be only read- and writeable by root for security reasons), 
+.B acidwarp
+must be run setuid root. If not, 
+.B acidwarp
+can not get the required I/O-Permissions!
+.SH COMMAND\-LINE OPTIONS
+No options are necessary. Just type 
+.B acidwarp
+and watch the show. However, you can give the following arguments at the command-line:
+.TP 
+.B -d --delay seconds
+Specifies the number of seconds to delay each picture.  Defaults to 20.
+.TP 
+.B -h --help
+Prints a help screen.
+.TP 
+.B -n --nologo
+Tells acidwarp not to display the logo at starup.
+.TP 
+.B -r --resolution res
+Specifies the resolution at which
+.B acidwarp
+should run.  This option should be followed by a number, either 1, 2 or 3, 
+indicating what resolution to use. 1 indicates 640x480, 2 indicates 800x600, and
+3 indicates 1024x768. 
+.B NOTE: it can take a while to generate an image at higher resolutions, especially on slower machines.
+.TP 
+.B -s --speed microseconds
+Specifies the speed of the palette rotation. Defaults to 25000.
+.TP 
+.B -w --warper
+Prints a text file explaining how to build "The Warper".
+.PP
+.SH AUTHORS
+The authors of the MS\-DOS version of 
+.B acidwarp 
+are Noah Spurrier (noah@noah.org) and Mark Bilk.  
+.PP
+The Linux port was done by Steven Wills (willssl@jmu.edu).
+.PP
+This man page was written by Michael Sterrett (msterret@css.tayloru.edu).
+.SH COPYRIGHT
+Copyright (C) 1992, 1993 Noah Spurrier and Mark Bilk.
+
+.B acidwarp 
+is free software; you can redistribute it and/or modify it
+under the terms of the GNU General Public License.

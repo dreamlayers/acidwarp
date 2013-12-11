@@ -1,259 +1,414 @@
 /* ACID WARP (c)Copyright 1992, 1993 by Noah Spurrier
  * All Rights reserved. Private Proprietary Source Code by Noah Spurrier
+ * Ported to Linux by Steven Wills
  */
-
-#include <dos.h>
-#include <conio.h>
 #include <malloc.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <vga.h>
+#include <vgagl.h>
+#include <vgakeyboard.h>
+#include <unistd.h>
 
+#include "warp_text.c"
 #include "handy.h"
-#include "lut.h"
 #include "acidwarp.h"
+#include "lut.h"
+#include "bit_map.h"
+#include "palinit.h"
+#include "rolnfade.h"
 
 #define NUM_IMAGE_FUNCTIONS 40
+#define NOAHS_FACE   0
 
-int ExitFlag = 0;
-void (__interrupt __far *origKbdHdweBiosIntVect09)();
-void (__interrupt __far *origCtrlCBrkDosIntVect23)();
+/* there are WAY too many global things here... */
+extern int RedRollDirection, GrnRollDirection, BluRollDirection;
+extern UINT FadeCompleteFlag;
+int VGAMODE;
+int VIRTUAL;
+int RES = 0;
+int ROTATION_DELAY = 30000;
+GraphicsContext *physicalscreen;
+int logo_time = 30, image_time = 20;
+int XMax = 0, YMax = 0;
+UCHAR *buf_graf;
+int GO = TRUE;
+int SKIP = FALSE;
+int NP = FALSE; /* flag indicates new palette */
+int LOCK = FALSE; /* flag indicates don't change to next image */
+UCHAR MainPalArray [256 * 3];
+UCHAR TargetPalArray [256 * 3];
 
 void main (int argc, char *argv[])
 {
   int imageFuncList[NUM_IMAGE_FUNCTIONS], userOptionImageFuncNum;
-	int paletteTypeNum, userPaletteTypeNumOptionFlag;
-  int delay_time, argNum, imageFuncListIndex, dosCtrlC_ChkFlag, firstTimeFlag;
-	UCHAR huge *buf_graf;
-/*  time_t ltime;*/
-	
-	beepOff();
+  int paletteTypeNum = 0, userPaletteTypeNumOptionFlag = FALSE;
+  int argNum, imageFuncListIndex=0, fade_dir = TRUE;
+  time_t ltime, mtime;
 
   RANDOMIZE();
-/*
-  time(&ltime);
-  ltime gets a long that increments once per second
-  srand((UINT)ltime);
-  a call to srand() starts a different sequence of rand() outputs
-*/
   
   /* Default options */
-	delay_time = 20;
   userPaletteTypeNumOptionFlag = 0;       /* User Palette option is OFF */
   userOptionImageFuncNum = -1; /* No particular functions goes first. */
   
-	/* Parse the command line */
-	if (argc >= 2)
-	{
-		for (argNum = 1; argNum < argc; ++argNum)
-		{
-			switch (*(argv[argNum]))
-			{
-        case 'D' :
-        case 'd' :  /* Set delay time */
-					delay_time = ABS(atoi(argv[argNum] + 1));
-				break;
+  commandline(argc, argv);
   
-				/* Set User Palette Option ON and set paletteTypeNum choice.  If there is an error
-               then this option is set back to the default. The User is not warned.  */
-        case 'P' :
-        case 'p' :
-					userPaletteTypeNumOptionFlag = 1;
-					paletteTypeNum = atoi (argv[argNum] + 1);
+  printf ("\nPlease wait...\n"
+	  "\n\n*** Press Control-C to exit the program at any time. ***\n");
+  printf ("\n\n%s\n", VERSION);
   
-					if (paletteTypeNum < 0 || paletteTypeNum > NUM_PALETTE_TYPES)
-						userPaletteTypeNumOptionFlag = 0;
-				break;
-  
-        case 'F' :
-        case 'f' :
-					userOptionImageFuncNum = atoi (argv[argNum] + 1);
-				break;
+  graphicsinit();
 
-        case 'W' :
-        case 'w' :  /* NOTE! This case exits the program! */
-					printStrArray(The_warper_string);
-					exit (0);
-				break;
+  physicalscreen = gl_allocatecontext(); 
+  gl_getcontext(physicalscreen);
 
-				case '?' :	/* NOTE! This case exits the program! */
-					printStrArray(Help_string);
-					printStrArray(Command_summary_string);
-					printf ("%s\n", VERSION);
-					exit (0);
+  initPalArray(MainPalArray, RGBW_LIGHTNING_PAL);
+  initPalArray(TargetPalArray, RGBW_LIGHTNING_PAL);
+  gl_setpalettecolors(0, 256, MainPalArray); 
+
+  if (logo_time != 0) {
+    /* show the logo for a while */
+    writeBitmapImageToArray(buf_graf, NOAHS_FACE, XMax, YMax);
+    gl_putbox(1,1,XMax,YMax,buf_graf);
+    ltime=time(NULL);
+    mtime=ltime + logo_time;
+    for(;;) {
+      processinput();
+      if(GO)
+	rollMainPalArrayAndLoadDACRegs(MainPalArray);
+      if(SKIP)
 	break;
-
-				default :	/* NOTE! The default case exits the program! */
-					printStrArray(Command_summary_string);
-					printf ("%s\n", VERSION);
-					exit(0);
+      if(ltime>mtime) 
 	break; 
+      ltime=time(NULL);
+      usleep(ROTATION_DELAY);
     }
+    while(!FadeCompleteFlag) {
+      processinput();
+      if(GO)
+        rolNFadeBlkMainPalArrayNLoadDAC(MainPalArray);
+      if(SKIP)
+	break;
+      usleep(ROTATION_DELAY);
     }
+    FadeCompleteFlag=!FadeCompleteFlag;
   } 
   
-	setParamsForNewVideoMode(0x13);
+  SKIP = FALSE;
+  makeShuffledList(imageFuncList, NUM_IMAGE_FUNCTIONS);
   
-	buf_graf = (UCHAR huge *) _fmalloc((UINT)XMax * (UINT)YMax);
-  
-	if (buf_graf == NULL)
+  for(;;) {
+    /* move to the next image */
+    if (++imageFuncListIndex >= NUM_IMAGE_FUNCTIONS)
       {
-		/* printf ("\nFree Memory>%lu\n", _ffree());	*/
-		printf ("\nYou don't have enough memory!\n");
-		printf ("%s\n", VERSION);
-		exit(1);
+	imageFuncListIndex = 0;
+	makeShuffledList(imageFuncList, NUM_IMAGE_FUNCTIONS);
       }
     
-  printf ("\nPlease wait...\n"
-			  "\n\n*** CTRL-BREAK will exit the program at any time. ***\n");
-	printf ("\n\n%s\n", VERSION);
+    /* install a new image */
+    generate_image(
+		   (userOptionImageFuncNum < 0) ? 
+		   imageFuncList[imageFuncListIndex] : 
+		   userOptionImageFuncNum, 
+		   buf_graf, XMax/2, YMax/2, XMax, YMax, 255);
+    gl_putbox(1,1,XMax,YMax,buf_graf);
     
-	origKbdHdweBiosIntVect09 = _dos_getvect(0x09);
-	origCtrlCBrkDosIntVect23 = _dos_getvect(0x23);
+    /* create new palette */
+    paletteTypeNum = RANDOM(NUM_PALETTE_TYPES +1);
+    initPalArray(TargetPalArray, paletteTypeNum);
     
-	_disable();											/* Save the old DOS Ctrl-C Check Flag	*/
-		__asm mov ah, 0x33	__asm mov al, 0x00	__asm Int 0x21			__asm mov dosCtrlC_ChkFlag, dx
-
-															/* Set the DOS Ctrl-C Check Flag to ON	*/
-		__asm mov ah, 0x33	__asm mov al, 0x01	__asm mov dl, 0x01	__asm Int 0x21
-
-		_dos_setvect(0x09, newKbdHdweInt09Svc);
-		_dos_setvect(0x23, newCtrlCBrkInt23Svc);
-	_enable(); 
+    /* this is the fade in */
+    while(!FadeCompleteFlag) {
+      processinput();
+      if(GO)
+	rolNFadeMainPalAryToTargNLodDAC(MainPalArray,TargetPalArray);
+      if(SKIP)
+	break;
+      usleep(ROTATION_DELAY);
+      gl_setpalettecolors(0, 256, MainPalArray);
+    }
     
-	/* Generate and display title screen */
-	memset (buf_graf, 0x00, (size_t)(XMax * YMax));
+    FadeCompleteFlag=!FadeCompleteFlag;
+    ltime = time(NULL);
+    mtime = ltime + image_time;
     
-	writeBitmapImageToArray ((UCHAR far *)buf_graf, NOAHS_FACE, XMax, YMax);
-	setNewVideoMode();
+    /* rotate the palette for a while */
+    for(;;) {
+      processinput();
+      if(GO)
+	rollMainPalArrayAndLoadDACRegs(MainPalArray);
+      if(SKIP)
+	break;
+      if(NP) {
+	newpal();
+	NP = FALSE;
+      }
+      ltime=time(NULL);
+      if((ltime>mtime) && !LOCK)
+	break;
+      usleep(ROTATION_DELAY);
+    }
     
-	initPalArray (  MainPalArray, RGBW_LIGHTNING_PAL);
-	initPalArray (TargetPalArray, RGBW_LIGHTNING_PAL);
-  loadAllDACRegs( MainPalArray);
-    
-	_movedata (FP_SEG(buf_graf), FP_OFF(buf_graf), 0xa000, 0x0000, (UINT)XMax * (UINT)YMax);
-	backgroundPaletteProcessNum = ROLL;								/* Start rolling palette	*/
-	beg_timer_hook ();
-
-	/* Wait about 10 seconds after showing my face.  Let the awe sink in.	*/
-	TimerDelayCountdown = 10 * 18; /* Should be 18.6, but avoid float */
-
-	while (TimerDelayCountdown && !ExitFlag)
-		if (_kbhit())
-{
-			_getch();
-			break;
+    /* fade out */
+    while(!FadeCompleteFlag) {
+      if(SKIP) 
+	break;
+      processinput();
+      if(GO)
+	if (fade_dir)
+	  rolNFadeBlkMainPalArrayNLoadDAC(MainPalArray);
+	else
+	  rolNFadeWhtMainPalArrayNLoadDAC(MainPalArray);
+      usleep(ROTATION_DELAY);
+    }
+    FadeCompleteFlag=!FadeCompleteFlag;
+    SKIP = FALSE;
+  }
+  /* exit */
+  printStrArray(Command_summary_string);
+  printf("%s\n", VERSION);
 }
 
-	for (firstTimeFlag = 1, imageFuncListIndex = NUM_IMAGE_FUNCTIONS; !ExitFlag; firstTimeFlag = 0)
-	{
-		if (++imageFuncListIndex >= NUM_IMAGE_FUNCTIONS)
+/* ------------------------END MAIN----------------------------------------- */
+
+void newpal()
 {
-			imageFuncListIndex = 0;
-			makeShuffledList(imageFuncList, NUM_IMAGE_FUNCTIONS);
+  int paletteTypeNum;
+  
+  paletteTypeNum = RANDOM(NUM_PALETTE_TYPES +1);
+  initPalArray(MainPalArray, paletteTypeNum);
+  gl_setpalettecolors(0, 256, TargetPalArray);
+}
+
+int checkinput()
+{
+  keyboard_update();
+  if(keyboard_keypressed(SCANCODE_P)) {
+    while(keyboard_keypressed(SCANCODE_P))
+      keyboard_update();
+    return 1;
+  }
+  if(keyboard_keypressed(SCANCODE_N)) {
+    while(keyboard_keypressed(SCANCODE_N))
+      keyboard_update();
+    return 2;
+  }
+  if(keyboard_keypressed(SCANCODE_Q)) {
+    while(keyboard_keypressed(SCANCODE_Q))
+      keyboard_update();
+    return 3;
+  }
+  if(keyboard_keypressed(SCANCODE_K)) {
+    while(keyboard_keypressed(SCANCODE_K))
+      keyboard_update();
+    return 4;
+  }
+  if(keyboard_keypressed(SCANCODE_L)) {
+    while(keyboard_keypressed(SCANCODE_L))
+      keyboard_update();
+    return 5;
+  }
+  if(keyboard_keypressed(SCANCODE_CURSORBLOCKUP)) {
+    while(keyboard_keypressed(SCANCODE_CURSORBLOCKUP))
+      keyboard_update();
+    return 6;
+  }
+  if(keyboard_keypressed(SCANCODE_CURSORBLOCKDOWN)) {
+    while(keyboard_keypressed(SCANCODE_CURSORBLOCKDOWN))
+      keyboard_update();
+    return 7;
   }
 
-		if (generate_image(  (userOptionImageFuncNum < 0) ? imageFuncList[imageFuncListIndex] : userOptionImageFuncNum,
-                   buf_graf, XMax/2, YMax/2, XMax, YMax, ColorMax)
-			)
-			break;		/* Exit flag is set by Ctrl-Brk/Ctrl-C ISRs and causes generate_image() to return 1 immediately.	*/
+  /* default case */
+  return 0;
+}
 
-		FadeCompleteFlag = 0;											/* Stop rolling palette	*/
-																				/* Start fading palette to white or black	*/
-    switch (firstTimeFlag ? BLACK_FADE : RANDOM (NUM_FADE_METHODS))
+void processinput()
+{
+  switch(checkinput())
     {
-			case BLACK_FADE:
-				backgroundPaletteProcessNum = ROLL_AND_FADE_BLACK;
+    case 1:
+      if(GO)
+	GO = FALSE;
+      else
+	GO = TRUE;
       break;
-
-			case WHITE_FADE:
-				backgroundPaletteProcessNum = ROLL_AND_FADE_WHITE;
+    case 2:
+      SKIP = TRUE;
       break;
-
-			default:
-				FadeCompleteFlag = 1;
+    case 3:
+      exit(0);
+      break;
+    case 4:
+      NP = TRUE;
+      break;
+    case 5:
+      if(LOCK)
+	LOCK = FALSE;
+      else
+	LOCK = TRUE;
+      break;
+    case 6:
+      ROTATION_DELAY = ROTATION_DELAY - 5000;
+      if (ROTATION_DELAY < 0)
+	ROTATION_DELAY = 0;
+      break;
+    case 7:
+      ROTATION_DELAY = ROTATION_DELAY + 5000;
       break;
     }
+}
 
-		while (!FadeCompleteFlag)
-			;																	/* Stop (done) fadeing palette	*/
-																				/* Move new image to screen		*/
-		_movedata (_FP_SEG(buf_graf), _FP_OFF(buf_graf), 0xa000, 0x0000, (size_t)(XMax * YMax));
-
-		if (!userPaletteTypeNumOptionFlag)
-      paletteTypeNum = RANDOM (NUM_PALETTE_TYPES + 1);
-
-		if (paletteTypeNum == NUM_PALETTE_TYPES)					/* Start fading palette toward random palette types	*/
-			backgroundPaletteProcessNum = ROLL_AND_FADE_TO_RANDOM_TARGET;
-		else
+void commandline(int argc, char *argv[])
 {
-			FadeCompleteFlag = 0;
-			initPalArray (TargetPalArray, paletteTypeNum);
-																				/* Start fading palette toward new palette type	*/
-			backgroundPaletteProcessNum = ROLL_AND_FADE_TO_TARGET;
+  int argNum;
 
-			while (!FadeCompleteFlag)
-				;
-																				/* Stop (done) fading palette toward new palette type	*/ 
-			backgroundPaletteProcessNum = ROLL;						/* Start rolling palette	*/
+  /* Parse the command line */
+  if (argc >= 2) {
+    for (argNum = 1; argNum < argc; ++argNum) {
+      if (!strcmp("-w",argv[argNum])) {
+        printStrArray(The_warper_string);
+        exit (0);
+      }
+      if (!strcmp("-h",argv[argNum])) {
+        printStrArray(Help_string);
+        printf("\n%s\n", VERSION);
+        exit (0);
+      }
+      if(!strcmp("-r",argv[argNum])) {
+         if((argc-1) > argNum) {
+          argNum++;
+          RES=atoi(argv[argNum]);
+          if ((RES != 1) && (RES != 2) && (RES !=3))
+            RES = 0;
         }
-																/* Should be 18.6, but integer 18 avoids floating point library.	*/
-		for (TimerDelayCountdown = delay_time * 18; TimerDelayCountdown && !ExitFlag; )
-			if (_kbhit())
+      }
+      if(!strcmp("-n",argv[argNum])) {
+        logo_time = 0;
+      }
+      if(!strcmp("-d",argv[argNum])) {
+        if((argc-1) > argNum) {
+          argNum++;
+          image_time = atoi(argv[argNum]);
+        }
+      }
+      if(!strcmp("-s", argv[argNum])) {
+        if((argc-1) > argNum) {
+          argNum++;
+          ROTATION_DELAY = atoi(argv[argNum]);
+        }
+      }
+    }
+  }
+}  
+
+void graphicsinit()
+{
+  /* setup the screen */
+  switch (RES)
     {
-				_getch();
+    case 0:
+      XMax = 319;
+      YMax = 199;
+      buf_graf = alloca((XMax+1)*(YMax+1));
+      memset(buf_graf, 0x00, (size_t)(320*200));
+      break;
+    case 1:
+      XMax = 639;
+      YMax = 479;
+      buf_graf = alloca((XMax+1)*(YMax+1));
+      memset(buf_graf, 0x00, (size_t)(640*480));
+      break;
+    case 2:
+      XMax = 799;
+      YMax = 599;
+      buf_graf = alloca((XMax+1)*(YMax+1));
+      memset(buf_graf,0x00, (size_t)(800*600));
+      break;
+    case 3:
+      XMax = 1023;
+      YMax = 767;
+      buf_graf = alloca((XMax+1)*(YMax+1));
+      memset(buf_graf,0x00, (size_t)(1024*768));
       break;
     }
-    }
-  /* endfor (;!Exit_Flag;) */
-
-	end_timer_hook();				/* This needs to be done before restoreOldVideoMode() */
-	restoreOldVideoMode();
-  
-  printStrArray(Command_summary_string);
-	printf("%s\n", VERSION);
-  
-	_disable();                         /* Restore the old DOS Ctrl-C Check Flag  */
-		__asm mov ah, 0x33	__asm mov al, 0x01	__asm mov dx, dosCtrlC_ChkFlag	__asm Int 0x21
-
-		_dos_setvect (0x09, origKbdHdweBiosIntVect09);
-		_dos_setvect (0x23, origCtrlCBrkDosIntVect23);
-	_enable();
-  
-	beepOff();
-}
-
-		/* If the user selected a specific paletteTypeNum then that will be used, else a random paletteTypeNum
-         will be chosen. The +1 is used to allow the SPECIAL PALETTE TYPE to be chosen. This is a dynamic
-         palette whose number is always one higher than the number of static palette types.	*/
-
-		/* NUM_PALETTE_TYPES is set only to the number of *STATIC* palettes. If the
-	 	* paletteTypeNum equals this number then that signifies that the SPECIAL
-	 	* PALETTE TYPE should be used instead of any of the static types.
-	 	*/
-
-void __interrupt __far newCtrlCBrkInt23Svc()
-{
-	ExitFlag = 1;
-}
-
-void __interrupt __far newKbdHdweInt09Svc()
-{
-	(*origKbdHdweBiosIntVect09)();
-  
-	if (*((char far *) 0x00400071))		/* if BIOS BREAK KEY flag is set */
+  vga_init();
+  switch (RES)
     {
-		*((char far *)0x00400071) = 0;	/* reset the BIOS BREAK KEY flag */
+    case 0:
+      VGAMODE=G320x200x256;
+      break;
+    case 1:
+      VGAMODE=G640x480x256;
+      break;
+    case 2:
+      VGAMODE=G800x600x256;
+      break;
+    case 3:
+      VGAMODE=G1024x768x256;
+      break;
+    }
+  VIRTUAL=0;
+  vga_setmode(VGAMODE);
+  
+  if (keyboard_init()) {
+    printf("Could not initialize keyboard.\n");
+    exit(1);
+  }
+  gl_setcontextvga(VGAMODE);  /* Physical screen context. */
+}
+
+void printStrArray(char *strArray[])
+{
+  /* Prints an array of strings.  The array is terminated with a null string.     */
+  char **strPtr;
+  
+  for (strPtr = strArray; **strPtr; ++strPtr)
+    printf ("%s", *strPtr);
+}
+
+void setNewVideoMode (void)
+{
+  vga_setmode(G320x200x256);
+}
+
+void restoreOldVideoMode (void)
+{
+  vga_setmode(TEXT);
+}
+
+void writePixel(int x, int y, int color)
+{
+  int temp;
+  
+  /*  temp = vga_getcolors(); */
+  vga_setcolor(color);
+  vga_drawpixel(x,y);
+  /* vga_setcolor(temp); */
+}
+
+void makeShuffledList(int *list, int listSize)
+{
+  int entryNum, r;
+  
+  for (entryNum = 0; entryNum < listSize; ++entryNum)
+    list[entryNum] = -1;
+  
+  for (entryNum = 0; entryNum < listSize; ++entryNum)
+    {
+      do
+	r = RANDOM(listSize);
+      while (list[r] != -1);
       
-		ExitFlag = 1;
+      list[r] = entryNum;
     }
 }
 
-
-int generate_image(int imageFuncNum, UCHAR far *buf_graf, int xcenter, int ycenter,
-             int xmax, int ymax, int colormax)
-{		/* Exits immediately and returns 1 if exitFlag is set by Ctrl-Brk/Ctrl-C ISRs, else returns 0	*/
+int generate_image(int imageFuncNum, UCHAR *buf_graf, int xcenter, int ycenter, int xmax, int ymax, int colormax)
+{
   
   /* WARNING!!! Major change from long to int.*/
   /* ### Changed back to long. Gives lots of warnings. Will fix soon. */
@@ -268,16 +423,8 @@ int generate_image(int imageFuncNum, UCHAR far *buf_graf, int xcenter, int ycent
   y1 = RANDOM(40)-20;  y2 = RANDOM(40)-20;  y3 = RANDOM(40)-20;  y4 = RANDOM(40)-20;
   
   a1 = RANDOM(ANGLE_UNIT);  a2 = RANDOM(ANGLE_UNIT);  a3 = RANDOM(ANGLE_UNIT);  a4 = RANDOM(ANGLE_UNIT);
-
   for (y = 0; y < ymax; ++y)
     {
-		if (ExitFlag)
-			return (1);
-
-    /* ### Got rid of progress flag option
-    if (progressFlag)
-			writePixel (x, 0, x % (colormax-1) +1);
-    */
       
       for (x = 0; x < xmax; ++x)
 	{
@@ -287,9 +434,10 @@ int generate_image(int imageFuncNum, UCHAR far *buf_graf, int xcenter, int ycent
 	  dist  = lut_dist (dx, dy);
 	  angle = lut_angle (dx, dy);
 	  
-			/* select function. Could be made a separate function, but since this function is
-            evaluated over a large iteration of values I am afraid that it might slow
-            things down even more to have a separate function.									*/
+	  /* select function. Could be made a separate function, but since 
+             this function is evaluated over a large iteration of values I am 
+             afraid that it might slow things down even more to have a 
+             separate function.	*/
 	  
 	  switch (imageFuncNum)
 	    {
@@ -385,8 +533,8 @@ int generate_image(int imageFuncNum, UCHAR far *buf_graf, int xcenter, int ycent
 	      break;
 	      
 	    case 17:
-					color = lut_sin(lut_cos(2 * x * ANGLE_UNIT / xmax)) / (20 + dist) +
-						  	  lut_sin(lut_cos(2 * y * ANGLE_UNIT / ymax)) / (20 + dist);
+	      color = lut_sin(lut_cos(2 * x * ANGLE_UNIT / xmax)) / (20 + dist)
+                + lut_sin(lut_cos(2 * y * ANGLE_UNIT / ymax)) / (20 + dist);
 	      break;
 	      
 	    case 18:	/* 2D Wave */
@@ -570,9 +718,10 @@ int generate_image(int imageFuncNum, UCHAR far *buf_graf, int xcenter, int ycent
 	      break;
 	    }
 	  
-			/* Fit color value into the palette range using modulo.  It seems that the
-			 * Turbo-C MOD function does not behave the way I expect. It gives negative values
-			 * for the MOD of a negative number. I expect MOD to function as it does on my HP-28S.
+	  /* Fit color value into the palette range using modulo.  It seems 
+             that the Turbo-C MOD function does not behave the way I expect.
+             It gives negative values for the MOD of a negative number.
+             I expect MOD to function as it does on my HP-28S.
 	   */
 
 	  color = color % (colormax-1);
@@ -580,9 +729,11 @@ int generate_image(int imageFuncNum, UCHAR far *buf_graf, int xcenter, int ycent
 	  if (color < 0)
 	    color += (colormax - 1);
 	  
-			++color; /* color 0 is never used, so all colors are from 1 through 255 */
+	  ++color;
+          /* color 0 is never used, so all colors are from 1 through 255 */
 	  
-			*(buf_graf + (xmax * y) + x) = (UCHAR)color;	/* Store the color in the buffer */
+	  *(buf_graf + (xmax * y) + x) = (UCHAR)color;
+          /* Store the color in the buffer */
 	}
       /* end for (y = 0; y < ymax; ++y)	*/
     }
@@ -602,28 +753,23 @@ int generate_image(int imageFuncNum, UCHAR far *buf_graf, int xcenter, int ycent
 }
 
 
-void makeShuffledList(int *list, int listSize)
-{
-	int entryNum, r;
 
-	for (entryNum = 0; entryNum < listSize; ++entryNum)
-		list[entryNum] = -1;
 
-	for (entryNum = 0; entryNum < listSize; ++entryNum)
-	{
-		do
-      r = RANDOM(listSize);
-		while (list[r] != -1);
 
-		list[r] = entryNum;
-	}
-}
 
-void printStrArray(char *strArray[])
-{					/* Prints an array of strings.  The array is terminated with a null string.	*/
-	char **strPtr;
 
-	for (strPtr = strArray; **strPtr; ++strPtr)
-		printf ("%s", *strPtr);
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
