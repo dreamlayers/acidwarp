@@ -1,4 +1,18 @@
 PLATFORM := $(shell uname -o)
+ifeq ($(PLATFORM),Emscripten)
+
+CC = emcc
+CFLAGS = -g -O2 -Wall -Wmissing-prototypes
+EXESUFFIX = .html
+LDFLAGS = $(CFLAGS)
+
+# Firefox doesn't like this line
+.PHONY : bugfix
+bugfix : $(TARGET)
+	sed -i 's,^          Module\[.canvas.\].exitPointerLock();$$,//&,' \
+	    acidwarp.js
+
+else
 ifeq ($(PLATFORM),Cygwin)
 
 CFLAGS = -g -O2 -Wall -I/usr/local/include/SDL -mno-cygwin -DSDL
@@ -13,6 +27,7 @@ CFLAGS = -Wall -Wmissing-prototypes -g -O2 $(shell sdl-config --cflags) -DSDL
 LIBS = $(shell sdl-config --libs)
 LDFLAGS = $(CFLAGS)
 
+endif
 endif
 
 LINK = $(CC)

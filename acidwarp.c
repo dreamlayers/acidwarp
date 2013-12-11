@@ -10,6 +10,9 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#ifdef EMSCRIPTEN
+#include <emscripten.h>
+#endif
 
 #include "SDL.h"
 #ifdef WIN32
@@ -55,6 +58,7 @@ static UCHAR MainPalArray [256 * 3];
 static UCHAR TargetPalArray [256 * 3];
 
 /* Prototypes for forward referenced functions */
+static void updateSDLSurface(void);
 static void processinput(void);
 static void newpal(void);
 static void printStrArray(char *strArray[]);
@@ -64,6 +68,7 @@ static int generate_image(int imageFuncNum, UCHAR *buf_graf,
                           int xcenter, int ycenter, int xmax, int ymax,
                           int colormax);
 static void commandline(int argc, char *argv[]);
+static void mainLoop(void);
 
 void setSDLPalette(unsigned char *palette) {
   int i;
@@ -73,8 +78,12 @@ void setSDLPalette(unsigned char *palette) {
     sdlPalette[i].b = palette[i*3+2] << 2;
   }
   
+#ifndef EMSCRIPTEN
   SDL_SetPalette(surface, SDL_PHYSPAL, sdlPalette, 0, 256);
-  /* SDL_SetColors(surface, sdlPalette, 0, 256); */
+#else
+  SDL_SetColors(surface, sdlPalette, 0, 256);
+  updateSDLSurface();
+#endif
 }
 
 static void updateSDLSurface(void) {
@@ -131,15 +140,9 @@ static void updateSDLSurface(void) {
 
 int main (int argc, char *argv[])
 {
-  int imageFuncList[NUM_IMAGE_FUNCTIONS], userOptionImageFuncNum;
-  int paletteTypeNum = 0;
-  int imageFuncListIndex=0, fade_dir = TRUE;
-  time_t ltime, mtime;
-
   RANDOMIZE();
   
   /* Default options */
-  userOptionImageFuncNum = -1; /* No particular functions goes first. */
   
   commandline(argc, argv);
   
@@ -153,39 +156,70 @@ int main (int argc, char *argv[])
   initPalArray(MainPalArray, RGBW_LIGHTNING_PAL);
   initPalArray(TargetPalArray, RGBW_LIGHTNING_PAL);
       setSDLPalette(MainPalArray);
-  
-  if (logo_time != 0) {
+
+#ifdef EMSCRIPTEN
+  emscripten_set_main_loop(mainLoop, 1000000/ROTATION_DELAY, 1);
+#else
+  while(1) {
+    mainLoop();
+    usleep(ROTATION_DELAY);
+  }
+#endif
+}
+
+static void mainLoop(void) {
+  static int imageFuncList[NUM_IMAGE_FUNCTIONS];
+  static int paletteTypeNum = 0;
+  static int imageFuncListIndex=0, fade_dir = TRUE;
+  static time_t ltime, mtime;
+  static enum {
+    STATE_INITIAL,
+    STATE_LOGO,
+    STATE_LOGOFADE,
+    STATE_NEXT,
+    STATE_FADEIN,
+    STATE_ROTATE,
+    STATE_FADEOUT
+  } state = STATE_INITIAL;
+
+  switch (state) {
+  case STATE_INITIAL:
+    makeShuffledList(imageFuncList, NUM_IMAGE_FUNCTIONS);
+    if (logo_time == 0) goto skip_logo;
     /* show the logo for a while */
     writeBitmapImageToArray(buf_graf, NOAHS_FACE, XMax, YMax);
 	updateSDLSurface();
     ltime=time(NULL);
     mtime=ltime + logo_time;
-    for(;;) {
+
+    /* Fall through */
+    state = STATE_LOGO;
+  case STATE_LOGO:
       processinput();
       if(GO)
 	rollMainPalArrayAndLoadDACRegs(MainPalArray);
-      if(SKIP)
-	break;
-      if(ltime>mtime) 
-	break; 
+      if(!SKIP && ltime<=mtime) {
       ltime=time(NULL);
-      usleep(ROTATION_DELAY);
-    }
-    while(!FadeCompleteFlag) {
+      break;
+      }
+
+    state = STATE_LOGOFADE;
+    /* Fall through */
+  case STATE_LOGOFADE:
+    if(!FadeCompleteFlag) {
       processinput();
       if(GO)
         rolNFadeBlkMainPalArrayNLoadDAC(MainPalArray);
-      if(SKIP)
-	break;
-      usleep(ROTATION_DELAY);
+      if(!SKIP)
+      break;
     }
     FadeCompleteFlag=!FadeCompleteFlag;
-  } 
-  
   SKIP = FALSE;
-  makeShuffledList(imageFuncList, NUM_IMAGE_FUNCTIONS);
-  
-  for(;;) {
+
+skip_logo:
+    state = STATE_NEXT;
+    /* Fall through */
+  case STATE_NEXT:
     /* move to the next image */
     if (++imageFuncListIndex >= NUM_IMAGE_FUNCTIONS)
       {
@@ -194,10 +228,7 @@ int main (int argc, char *argv[])
       }
     
     /* install a new image */
-    generate_image(
-		   (userOptionImageFuncNum < 0) ? 
-		   imageFuncList[imageFuncListIndex] : 
-		   userOptionImageFuncNum, 
+    generate_image(imageFuncList[imageFuncListIndex],
 		   buf_graf, XMax/2, YMax/2, XMax, YMax, 
 		   255
 		   );
@@ -208,42 +239,50 @@ int main (int argc, char *argv[])
     paletteTypeNum = RANDOM(NUM_PALETTE_TYPES +1);
     initPalArray(TargetPalArray, paletteTypeNum);
     
+    state = STATE_FADEIN;
+    /* Fall through */
+  case STATE_FADEIN:
+
     /* this is the fade in */
-    while(!FadeCompleteFlag) {
+    if (!FadeCompleteFlag) {
       processinput();
       if(GO)
 	rolNFadeMainPalAryToTargNLodDAC(MainPalArray,TargetPalArray);
-      if(SKIP)
+      if(SKIP) {
+        SKIP = FALSE;
+        state = STATE_NEXT;
 	break;
-      usleep(ROTATION_DELAY);
+      }
       setSDLPalette(MainPalArray);
+      break;
     }
     
     FadeCompleteFlag=!FadeCompleteFlag;
     ltime = time(NULL);
     mtime = ltime + image_time;
     
+    state = STATE_ROTATE;
+    /* Fall through */
+  case STATE_ROTATE:
     /* rotate the palette for a while */
-    for(;;) {
       processinput();
       if(GO)
 	rollMainPalArrayAndLoadDACRegs(MainPalArray);
-      if(SKIP)
-	break;
+      if(!SKIP) {
       if(NP) {
 	newpal();
 	NP = FALSE;
       }
       ltime=time(NULL);
       if((ltime>mtime) && !LOCK)
+	state = STATE_FADEOUT; /* Fall through */
+      else
 	break;
-      usleep(ROTATION_DELAY);
-    }
-    
+      }
+
+  case STATE_FADEOUT:
     /* fade out */
-    while(!FadeCompleteFlag) {
-      if(SKIP) 
-	break;
+    if (!FadeCompleteFlag && !SKIP) {
       processinput();
       if(GO) {
 	if (fade_dir)
@@ -251,16 +290,20 @@ int main (int argc, char *argv[])
 	else
 	  rolNFadeWhtMainPalArrayNLoadDAC(MainPalArray);
       }
-      usleep(ROTATION_DELAY);
+    } else {
+      FadeCompleteFlag=!FadeCompleteFlag;
+      SKIP = FALSE;
+      state = STATE_NEXT;
     }
-    FadeCompleteFlag=!FadeCompleteFlag;
-    SKIP = FALSE;
   }
+#if 0
+  /* This was unreachable before */
   /* exit */
   printStrArray(Command_summary_string);
   printf("%s\n", VERSION);
 
   return 0;
+#endif
 }
 
 /* ------------------------END MAIN----------------------------------------- */
@@ -461,7 +504,10 @@ void graphicsinit()
       break;
     }
   */
-  Uint32 videoflags = SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_HWPALETTE |
+  Uint32 videoflags = SDL_HWSURFACE | SDL_DOUBLEBUF |
+#ifndef EMSCRIPTEN
+                      SDL_HWPALETTE |
+#endif
                       SDL_RESIZABLE | (fullscreen?SDL_FULLSCREEN:0);
 
   static int inited = 0;
