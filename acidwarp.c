@@ -130,14 +130,13 @@ void updateSDLSurface(void) {
 int main (int argc, char *argv[])
 {
   int imageFuncList[NUM_IMAGE_FUNCTIONS], userOptionImageFuncNum;
-  int paletteTypeNum = 0, userPaletteTypeNumOptionFlag = FALSE;
+  int paletteTypeNum = 0;
   int imageFuncListIndex=0, fade_dir = TRUE;
   time_t ltime, mtime;
 
   RANDOMIZE();
   
   /* Default options */
-  userPaletteTypeNumOptionFlag = 0;       /* User Palette option is OFF */
   userOptionImageFuncNum = -1; /* No particular functions goes first. */
   
   commandline(argc, argv);
@@ -274,51 +273,6 @@ void newpal()
   setSDLPalette(MainPalArray);
 }
 
-#if 0
-int checkinput()
-{
-  keyboard_update();
-  if(keyboard_keypressed(SCANCODE_P)) {
-    while(keyboard_keypressed(SCANCODE_P))
-      keyboard_update();
-    return 1;
-  }
-  if(keyboard_keypressed(SCANCODE_N)) {
-    while(keyboard_keypressed(SCANCODE_N))
-      keyboard_update();
-    return 2;
-  }
-  if(keyboard_keypressed(SCANCODE_Q)) {
-    while(keyboard_keypressed(SCANCODE_Q))
-      keyboard_update();
-    return 3;
-  }
-  if(keyboard_keypressed(SCANCODE_K)) {
-    while(keyboard_keypressed(SCANCODE_K))
-      keyboard_update();
-    return 4;
-  }
-  if(keyboard_keypressed(SCANCODE_L)) {
-    while(keyboard_keypressed(SCANCODE_L))
-      keyboard_update();
-    return 5;
-  }
-  if(keyboard_keypressed(SCANCODE_CURSORBLOCKUP)) {
-    while(keyboard_keypressed(SCANCODE_CURSORBLOCKUP))
-      keyboard_update();
-    return 6;
-  }
-  if(keyboard_keypressed(SCANCODE_CURSORBLOCKDOWN)) {
-    while(keyboard_keypressed(SCANCODE_CURSORBLOCKDOWN))
-      keyboard_update();
-    return 7;
-  }
-  /* default case */
-  return 0;
-}
-#endif
-
-
 void handleinput(int key)
 {
   switch(key)
@@ -356,7 +310,7 @@ void handleinput(int key)
     }
 }
 
-void xpceC_HandleInputChar(int c) {
+void handleInputChar(int c) {
   int r;
   
   switch (c) {
@@ -376,20 +330,6 @@ void xpceC_HandleInputChar(int c) {
   }
   handleinput(r);
 }
-
-#if 0
-void xpceC_HandleInputKeySym(int k) {
-  int r;
-
-  switch (k) {
-  case XK_Up:       r = 6;     break;
-  case XK_Down:     r = 7;     break;
-  default:
-    return;
-  }
-  handleinput(r);
-}
-#endif
 
 void processinput() {
   SDL_Event event;
@@ -438,7 +378,7 @@ void processinput() {
     }
   }
   
-  if (keyHit != 0) xpceC_HandleInputChar(keyHit);
+  if (keyHit != 0) handleInputChar(keyHit);
 }
 
 
@@ -464,13 +404,6 @@ void commandline(int argc, char *argv[])
       if(!strcmp("-n",argv[argNum])) {
         logo_time = 0;
       }
-#if 0
-      else
-      if(!strcmp("-r",argv[argNum])) {
-        XMax = -1;
-	YMax = -1;
-      }
-#endif
       else
       if(!strcmp("-d",argv[argNum])) {
         if((argc-1) > argNum) {
@@ -569,9 +502,7 @@ void graphicsinit()
 
     /* Initialize SDL */
     if ( SDL_Init(SDL_INIT_VIDEO) < 0 ) {
-      char str[1000];
-      printf(str, "Could not initialize SDL library: %s\n",SDL_GetError());
-      fprintf(stderr,str);
+      fprintf(stderr, "Could not initialize SDL library: %s\n",SDL_GetError());
       exit(-1);
     }
 
@@ -662,30 +593,6 @@ void graphicsinit()
   }
 
   inited = 1;  
-  
-
-
-
-#if 0
-  switch (RES)
-    {
-    case 0:
-      VGAMODE=G320x200x256;
-      break;
-    case 1:
-      VGAMODE=G640x480x256;
-      break;
-    case 2:
-      VGAMODE=G800x600x256;
-      break;
-    case 3:
-      VGAMODE=G1024x768x256;
-      break;
-    }
-#endif
-  VIRTUAL=0;
-
-
 }
 
 void printStrArray(char *strArray[])
@@ -697,28 +604,9 @@ void printStrArray(char *strArray[])
     printf ("%s", *strPtr);
 }
 
-#if 0
-void setNewVideoMode (void)
-{
-  vga_setmode(G320x200x256);
-}
-#endif
-
 void restoreOldVideoMode (void)
 {
 }
-
-#if 0
-void writePixel(int x, int y, int color)
-{
-  int temp;
-  
-  temp = vga_getcolors();
-  vga_setcolor(color);
-  vga_drawpixel(x,y);
-  vga_setcolor(temp);
-}
-#endif
 
 void makeShuffledList(int *list, int listSize)
 {
@@ -747,12 +635,11 @@ int generate_image(int imageFuncNum, UCHAR *buf_graf, int xcenter, int ycenter, 
   long color;
   
   /* Some general purpose random angles and offsets. Not all functions use them. */
-  long a1, a2, a3, a4, x1,x2,x3,x4,y1,y2,y3,y4;
+  long x1,x2,x3,x4,y1,y2,y3,y4;
   
   x1 = RANDOM(40)-20;  x2 = RANDOM(40)-20;  x3 = RANDOM(40)-20;  x4 = RANDOM(40)-20;
   y1 = RANDOM(40)-20;  y2 = RANDOM(40)-20;  y3 = RANDOM(40)-20;  y4 = RANDOM(40)-20;
   
-  a1 = RANDOM(ANGLE_UNIT);  a2 = RANDOM(ANGLE_UNIT);  a3 = RANDOM(ANGLE_UNIT);  a4 = RANDOM(ANGLE_UNIT);
   for (y = 0; y <= ymax; ++y)
     {
       
