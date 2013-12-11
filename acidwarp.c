@@ -16,6 +16,18 @@
 #endif
 #include <unistd.h>
 
+#ifdef SDL
+#include "SDL.h"
+#ifdef WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#undef BOOL
+#define BOOL IGNOREBOOL
+#undef FALSE
+#undef TRUE
+#endif
+#endif
+ 
 #include "warp_text.c"
 #include "handy.h"
 #include "acidwarp.h"
@@ -29,6 +41,18 @@
 #include "libxpce/libxpce.h"
 #endif
 
+#ifdef SDL
+ 
+static SDL_Surface *surface;
+static SDL_Color sdlPalette[256];
+static int fullscreen;
+static int scaling = 1;
+// Save window size when in full screen
+static int winwidth = 0;
+static int winheight;
+
+#endif
+ 
 #define NUM_IMAGE_FUNCTIONS 40
 #define NOAHS_FACE   0
 
@@ -41,14 +65,82 @@ int RES = 0;
 int ROTATION_DELAY = 30000;
 /* GraphicsContext *physicalscreen; */
 int logo_time = 30, image_time = 20;
-int XMax = 0, YMax = 0;
-extern UCHAR *buf_graf;
+int XMax = 319, YMax = 199;
+UCHAR *buf_graf = NULL;
 int GO = TRUE;
 int SKIP = FALSE;
 int NP = FALSE; /* flag indicates new palette */
 int LOCK = FALSE; /* flag indicates don't change to next image */
 UCHAR MainPalArray [256 * 3];
 UCHAR TargetPalArray [256 * 3];
+
+#ifdef SDL
+
+void setSDLPalette(unsigned char *palette) {
+  int i;
+  for(i=0;i<256;i++) {
+    sdlPalette[i].r = palette[i*3+0] << 2;
+    sdlPalette[i].g = palette[i*3+1] << 2;
+    sdlPalette[i].b = palette[i*3+2] << 2;
+  }
+  
+  SDL_SetPalette(surface, SDL_PHYSPAL, sdlPalette, 0, 256);
+  /* SDL_SetColors(surface, sdlPalette, 0, 256); */
+}
+
+void updateSDLSurface(void) { 
+  int row;
+  unsigned char *outp;
+  unsigned char *inp = buf_graf;
+  if (SDL_LockSurface(surface) != 0) {
+    fprintf(stderr, "Couldn't lock surface\n");
+	exit(-1);
+  }
+  outp = surface->pixels;
+
+  if (scaling == 1) {	  
+    for (row = 0; row <= YMax; row++) {	 
+      memcpy(outp, inp, XMax+1);
+	  outp += surface->pitch;
+	  inp += XMax + 1;
+    }
+  } else if (scaling == 2) {
+    unsigned char *outp2 = outp + surface->pitch;
+	int skip = (surface->pitch - XMax - 1) * 2;
+	int col;
+	unsigned char c;
+    for (row = 0; row <= YMax; row++) {	 
+	  for (col = 0; col <= XMax; col++) { 
+	    c = *(inp++);
+		*(outp++) = c;
+		*(outp++) = c;
+		*(outp2++) = c;
+		*(outp2++) = c;
+	  }
+	  outp += skip;
+	  outp2 += skip;
+    }
+  }
+
+#if 0
+  // To debug palette
+  for (row = 0; row < 3; row++) {
+    int col;
+    outp = surface->pixels + surface->pitch * row;
+	for (col = 0; col < 256; col++) {
+	  *(outp++) = col;
+	}
+  }
+#endif
+  
+  SDL_UnlockSurface(surface);
+
+  SDL_Flip(surface);
+}
+
+#undef main
+
+#endif
 
 int main (int argc, char *argv[])
 {
@@ -78,21 +170,23 @@ int main (int argc, char *argv[])
 
   initPalArray(MainPalArray, RGBW_LIGHTNING_PAL);
   initPalArray(TargetPalArray, RGBW_LIGHTNING_PAL);
-#ifdef LIBXPCE
-  xpce_SetPalette(MainPalArray);
+#if defined(SVGALIB)
+      gl_setpalettecolors(0, 256, MainPalArray);
+#elif defined(LIBXPCE)
+      xpce_SetPalette(MainPalArray);
+#elif defined(SDL)
+      setSDLPalette(MainPalArray);
 #endif
-#ifdef SVGALIB
-  gl_setpalettecolors(0, 256, MainPalArray);
-#endif
-
+  
   if (logo_time != 0) {
     /* show the logo for a while */
     writeBitmapImageToArray(buf_graf, NOAHS_FACE, XMax, YMax);
-#ifdef SVGALIB
+#if defined(SVGALIB)
     gl_putbox(1,1,XMax,YMax,buf_graf);
-#endif
-#ifdef LIBXPCE
+#elif defined(LIBXPCE)
     xpce_DrawImage();
+#elif defined(SDL)
+	updateSDLSurface();
 #endif
     ltime=time(NULL);
     mtime=ltime + logo_time;
@@ -142,11 +236,12 @@ int main (int argc, char *argv[])
 #endif
 		   );
 
-#ifdef SVGALIB
-    gl_putbox(1,1,XMax,YMax,buf_graf); 
-#endif
-#ifdef LIBXPCE
+#if defined(SVGALIB)
+    gl_putbox(1,1,XMax,YMax,buf_graf);
+#elif defined(LIBXPCE)
     xpce_DrawImage();
+#elif defined(SDL)
+	updateSDLSurface();
 #endif
 
     /* create new palette */
@@ -161,11 +256,12 @@ int main (int argc, char *argv[])
       if(SKIP)
 	break;
       usleep(ROTATION_DELAY);
-#ifdef SVGALIB
+#if defined(SVGALIB)
       gl_setpalettecolors(0, 256, MainPalArray);
-#endif
-#ifdef LIBXPCE
+#elif defined(LIBXPCE)
       xpce_SetPalette(MainPalArray);
+#elif defined(SDL)
+      setSDLPalette(MainPalArray);
 #endif
     }
     
@@ -221,11 +317,13 @@ void newpal()
   
   paletteTypeNum = RANDOM(NUM_PALETTE_TYPES +1);
   initPalArray(MainPalArray, paletteTypeNum);
-#ifdef SVGALIB
-  gl_setpalettecolors(0, 256, TargetPalArray);
-#endif
-#ifdef LIBXPCE
+
+#if defined(SVGALIB)
+  gl_setpalettecolors(0, 256, MainPalArray);  /* FIXME really target?? */
+#elif defined(LIBXPCE)
   xpce_SetPalette(MainPalArray);
+#elif defined(SDL)
+  setSDLPalette(MainPalArray);
 #endif
 }
 
@@ -293,9 +391,11 @@ void handleinput(int key)
       SKIP = TRUE;
       break;
     case 3:
-#ifdef LIBXPCE
+#if defined(LIBXPCE)
       xpce_QuitNotify();
       xpce_CloseGraph();
+#elif defined(SDL)
+	  SDL_Quit();
 #endif
       exit(0);
       break;
@@ -319,8 +419,7 @@ void handleinput(int key)
     }
 }
 
-
-#ifdef LIBXPCE
+#if defined(LIBXPCE) || defined(SDL)
 void xpceC_HandleInputChar(int c) {
   int r;
   
@@ -341,7 +440,9 @@ void xpceC_HandleInputChar(int c) {
   }
   handleinput(r);
 }
+#endif
 
+#if 0
 void xpceC_HandleInputKeySym(int k) {
   int r;
 
@@ -353,7 +454,59 @@ void xpceC_HandleInputKeySym(int k) {
   }
   handleinput(r);
 }
+#endif
 
+void processinput() {
+  SDL_Event event;
+ 
+  char keyHit = 0;
+  
+  while ( SDL_PollEvent(&event) > 0 ) {
+    switch (event.type) {
+      case SDL_MOUSEBUTTONDOWN:
+		fullscreen = !fullscreen;
+        graphicsinit();
+		break;
+      case SDL_KEYDOWN:
+        ///* Ignore key releases */
+        //if ( event.key.state == SDL_RELEASED ) {
+        //  break;
+        //}
+        /* Ignore ALT-TAB for windows */
+        if ( (event.key.keysym.sym == SDLK_LALT) ||
+             (event.key.keysym.sym == SDLK_TAB) ) {
+          break;
+        } else if (event.key.keysym.sym == SDLK_UP) {
+          handleinput(6);
+		} else if (event.key.keysym.sym == SDLK_DOWN) {
+		  handleinput(7);
+		} else if (event.key.keysym.unicode <= 255) {
+          keyHit = event.key.keysym.unicode;
+		}
+        break;
+      case SDL_VIDEORESIZE:
+		XMax = event.resize.w - 1;
+		YMax = event.resize.h - 1;
+		if (buf_graf != 0) {
+		  free(buf_graf);
+		  buf_graf = 0;
+	    }
+		SKIP = TRUE;
+		graphicsinit();
+		break;
+      case SDL_QUIT:
+		  //abort();
+		handleinput(3);
+		break;
+      default:
+        break;
+    }
+  }
+  
+  if (keyHit != 0) xpceC_HandleInputChar(keyHit);
+}
+
+#ifdef LIBXPCE
 void xpceC_QuitRequest() {
   handleinput(3);
 }
@@ -455,11 +608,145 @@ void graphicsinit()
       break;
     }
   */
+#ifdef SDL
+  Uint32 videoflags = SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_HWPALETTE |
+                      SDL_RESIZABLE | (fullscreen?SDL_FULLSCREEN:0);
 
-  if (XMax == 0 || YMax == 0) {
-    XMax = 319;
-    YMax = 199;
+  static int inited = 0;
+#ifdef WIN32  
+  static int palettehack = 0;
+  OSVERSIONINFO winver;
+  const char *svd = "SDL_VIDEODRIVER";
+
+  if (inited && palettehack ) {
+    SDL_Quit();
+    inited = 0;
   }
+#endif
+  
+  if (!inited) {
+#ifdef WIN32
+    if (!palettehack) {
+      winver.dwOSVersionInfoSize = sizeof(winver);
+      if (GetVersionEx(&winver) && 
+          winver.dwPlatformId == 2 && winver.dwMajorVersion == 5 &&
+          (winver.dwMinorVersion == 0 || winver.dwMinorVersion == 1)) {
+        // Windows XP or 2000 can give us all 256 colours
+        palettehack = 0;
+      } else if (GetEnvironmentVariable(svd, NULL, 0) > 0) {
+        // SDL_VIDEODRIVER already set
+        palettehack = 0;
+      } else {
+        palettehack = 1;
+      }
+    }
+
+    if (palettehack) {
+      if (fullscreen) {
+        SetEnvironmentVariable(svd, "directx");
+      } else {
+        SetEnvironmentVariable(svd, "windib");
+      }
+    }
+#endif
+
+    /* Initialize SDL */
+    if ( SDL_Init(SDL_INIT_VIDEO) < 0 ) {
+      char str[1000];
+      printf(str, "Could not initialize SDL library: %s\n",SDL_GetError());
+      fprintf(stderr,str);
+      exit(-1);
+    }
+
+    SDL_WM_SetCaption("Acidwarp","acidwarp");
+
+    SDL_EnableUNICODE(1);
+
+    /* XMax = 319;
+    YMax = 199;	 */
+  }
+  
+  SDL_ShowCursor(!fullscreen);
+
+  // If going back to windowed mode, restore window size
+  if (!fullscreen) {
+    scaling = 1;
+    if (winwidth != 0) {
+	  XMax = winwidth;
+	  YMax = winheight;
+	  SKIP = TRUE;
+	  if (buf_graf != NULL) {
+	    free(buf_graf);
+        buf_graf = NULL;
+	  }
+      winwidth = 0;	  
+    }
+  } else {
+    /* Get available fullscreen modes */
+    SDL_Rect **modes = SDL_ListModes(0, videoflags);
+
+    if(modes == (SDL_Rect **)-1){
+      /* All resolutions ok */
+      scaling = 1;
+    } else {
+      // Full screen should really fill the whole screen
+      // Find video mode with closest number of pixels
+      int newwidth = 0;
+	  int newheight = 0;
+	  int curdiff;
+	  int bestdiff = -1;
+	  int curpix = (XMax+1) * (YMax+1);
+	  int i, j;
+      for(i=0;modes[i];i++) {
+	    for (j=1;j<=2; j++) { // try out scaling
+	      curdiff = modes[i]->w * modes[i]->h / (j * j) - curpix;
+	      if ((curdiff) < 0)
+	        curdiff = -curdiff;
+          if (bestdiff == -1 || curdiff < bestdiff || 
+	          (curdiff == bestdiff && j < scaling)) {
+            scaling = j;
+   	        newwidth = modes[i]->w / j;
+	        newheight = modes[i]->h / j;
+	        bestdiff = curdiff;
+		  }	  
+	    }
+	  }
+	  
+	  if (newwidth != 0 && (newwidth != XMax+1 || newheight != YMax+1)) {
+	    winwidth = XMax;
+	    winheight = YMax;
+		XMax = newwidth - 1;
+		YMax = newheight - 1;
+ 	    SKIP = TRUE;
+	    if (buf_graf != NULL) {
+	      free(buf_graf);
+          buf_graf = NULL;
+	    }
+      }
+	}
+  }
+
+  surface = SDL_SetVideoMode((XMax+1)*scaling, (YMax+1)*scaling, 8, videoflags);
+  if (!surface)	{
+    fprintf(stderr, "setting video mode");
+    exit(-1);
+  }
+#ifdef WIN32
+  if (palettehack)
+    SetEnvironmentVariable(svd, NULL);
+#endif  
+
+  // SDL_SetColors(surface, sdlPalette, 0, 256);
+  if (buf_graf == NULL) {
+    buf_graf = malloc ((XMax + 1) * (YMax + 1));
+    // Clearing is only needed for the initial logo
+    if (!inited)
+      memset(buf_graf, 0, (XMax + 1) * (YMax + 1));
+  }
+
+  inited = 1;  
+  
+#endif
 
 #ifdef LIBXPCE
    fprintf(stderr, "DISPLAY=\"%s\"\n", getenv("DISPLAY"));
@@ -470,6 +757,11 @@ void graphicsinit()
 #endif
 
 #ifdef SVGALIB
+   /* Is this if here ok? */
+   if (XMax == 0 || YMax == 0) {
+     XMax = 319;
+     YMax = 199;
+   }
    vga_init();
 #endif
 
@@ -569,10 +861,10 @@ int generate_image(int imageFuncNum, UCHAR *buf_graf, int xcenter, int ycenter, 
   y1 = RANDOM(40)-20;  y2 = RANDOM(40)-20;  y3 = RANDOM(40)-20;  y4 = RANDOM(40)-20;
   
   a1 = RANDOM(ANGLE_UNIT);  a2 = RANDOM(ANGLE_UNIT);  a3 = RANDOM(ANGLE_UNIT);  a4 = RANDOM(ANGLE_UNIT);
-  for (y = 0; y < ymax; ++y)
+  for (y = 0; y <= ymax; ++y)
     {
       
-      for (x = 0; x < xmax; ++x)
+      for (x = 0; x <= xmax; ++x)
 	{
 	  dx = x - xcenter;
 	  dy = y - ycenter;
@@ -897,25 +1189,3 @@ int generate_image(int imageFuncNum, UCHAR *buf_graf, int xcenter, int ycenter, 
   
   return (0);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

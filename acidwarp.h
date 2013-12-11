@@ -1,6 +1,13 @@
 /* ACIDWARP.H */
 
-#define VERSION "Acid Warp Version 4.10 (C)Copyright 1992, 1993 by Noah Spurrier and Mark Bilk\nLinux port by Steven Wills\nX11 port by Boris Gjenero"
+#if defined(SVGALIB)
+#define VERSION "Acid Warp Version 4.10 (C)Copyright 1992, 1993 by Noah Spurrier and Mark Bilk\nLinux port by Steven Wills"
+#elif defined(LIBXPCE)
+#define VERSION "Acid Warp Version 4.10 (C)Copyright 1992, 1993 by Noah Spurrier and Mark Bilk\nX11 port by Boris Gjenero based on Linux port by Steven Wills"
+#else
+#define VERSION "Acid Warp Version 4.10 (C)Copyright 1992, 1993 by Noah Spurrier and Mark Bilk\nSDL port by Boris Gjenero based on Linux port by Steven Wills"
+#endif
+
 #define DIRECTN_CHANGE_PERIOD_IN_TICKS               256
 
 /* Palette types  */
@@ -29,7 +36,9 @@ int generate_image(int imageFuncNum, UCHAR *buf_graf, int xcenter, int ycenter, 
 void processinput();
 void newpal();
 
-
+#ifdef SDL
+void setSDLPalette(unsigned char *palette);
+#endif
 
 
 

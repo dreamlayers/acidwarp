@@ -51,8 +51,10 @@ void rollMainPalArrayAndLoadDACRegs(UCHAR *MainPalArray)
 {
         maybeInvertSubPalRollDirection();
         roll_rgb_palArray(MainPalArray);
-#ifdef LIBXPCE
+#if defined(LIBXPCE)
         xpce_SetPalette(MainPalArray);
+#elif defined(SDL)
+		setSDLPalette(MainPalArray);
 #endif
 }
 
@@ -109,8 +111,10 @@ void rolNFadMainPalAry2RndTargNLdDAC(UCHAR *MainPalArray, UCHAR *TargetPalArray)
 	maybeInvertSubPalRollDirection();
 	roll_rgb_palArray (  MainPalArray);
 	roll_rgb_palArray (TargetPalArray);
-#ifdef LIBXPCE
+#if defined(LIBXPCE)
         xpce_SetPalette(MainPalArray);
+#elif defined(SDL)
+		setSDLPalette(MainPalArray);
 #endif
 }
 
