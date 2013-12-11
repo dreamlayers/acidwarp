@@ -82,6 +82,7 @@ void rolNFadeMainPalAryToTargNLodDAC(UCHAR *MainPalArray, UCHAR *TargetPalArray)
 		maybeInvertSubPalRollDirection();
 		roll_rgb_palArray (  MainPalArray);
 		roll_rgb_palArray (TargetPalArray);
+		setSDLPalette(MainPalArray);
 	}
 	else
     rollMainPalArrayAndLoadDACRegs(MainPalArray);

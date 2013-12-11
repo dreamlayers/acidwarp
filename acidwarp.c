@@ -236,7 +236,6 @@ logo_entry:
     if (!FadeCompleteFlag) {
       if(GO) {
 	rolNFadeMainPalAryToTargNLodDAC(MainPalArray,TargetPalArray);
-        setSDLPalette(MainPalArray);
       }
       break;
     }
