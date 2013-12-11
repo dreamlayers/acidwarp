@@ -179,8 +179,19 @@ static void mainLoop(void) {
     STATE_NEXT,
     STATE_FADEIN,
     STATE_ROTATE,
+    STATE_FADEOUT_START,
     STATE_FADEOUT
   } state = STATE_INITIAL;
+
+  processinput();
+  if (SKIP) {
+    if (state == STATE_INITIAL) {
+      logo_time = 0;
+      SKIP = FALSE;
+    } else {
+      state = STATE_NEXT;
+    }
+  }
 
   switch (state) {
   case STATE_INITIAL:
@@ -195,10 +206,9 @@ static void mainLoop(void) {
     /* Fall through */
     state = STATE_LOGO;
   case STATE_LOGO:
-      processinput();
       if(GO)
 	rollMainPalArrayAndLoadDACRegs(MainPalArray);
-      if(!SKIP && ltime<=mtime) {
+      if(ltime<=mtime) {
       ltime=time(NULL);
       break;
       }
@@ -207,14 +217,11 @@ static void mainLoop(void) {
     /* Fall through */
   case STATE_LOGOFADE:
     if(!FadeCompleteFlag) {
-      processinput();
       if(GO)
         rolNFadeBlkMainPalArrayNLoadDAC(MainPalArray);
-      if(!SKIP)
       break;
     }
-    FadeCompleteFlag=!FadeCompleteFlag;
-  SKIP = FALSE;
+    FadeCompleteFlag=FALSE;
 
 skip_logo:
     state = STATE_NEXT;
@@ -235,9 +242,13 @@ skip_logo:
 
 	updateSDLSurface();
 
+    if (!SKIP) {
     /* create new palette */
     paletteTypeNum = RANDOM(NUM_PALETTE_TYPES +1);
     initPalArray(TargetPalArray, paletteTypeNum);
+    FadeCompleteFlag = FALSE; /* Fade-in needed next */
+    }
+    SKIP = FALSE;
     
     state = STATE_FADEIN;
     /* Fall through */
@@ -245,19 +256,13 @@ skip_logo:
 
     /* this is the fade in */
     if (!FadeCompleteFlag) {
-      processinput();
-      if(GO)
+      if(GO) {
 	rolNFadeMainPalAryToTargNLodDAC(MainPalArray,TargetPalArray);
-      if(SKIP) {
-        SKIP = FALSE;
-        state = STATE_NEXT;
-	break;
+        setSDLPalette(MainPalArray);
       }
-      setSDLPalette(MainPalArray);
       break;
     }
     
-    FadeCompleteFlag=!FadeCompleteFlag;
     ltime = time(NULL);
     mtime = ltime + image_time;
     
@@ -265,25 +270,25 @@ skip_logo:
     /* Fall through */
   case STATE_ROTATE:
     /* rotate the palette for a while */
-      processinput();
       if(GO)
 	rollMainPalArrayAndLoadDACRegs(MainPalArray);
-      if(!SKIP) {
       if(NP) {
 	newpal();
 	NP = FALSE;
       }
       ltime=time(NULL);
-      if((ltime>mtime) && !LOCK)
-	state = STATE_FADEOUT; /* Fall through */
-      else
+      if((ltime>mtime) && !LOCK) {
+	state = STATE_FADEOUT_START; /* Fall through */
+      } else
 	break;
-      }
 
+  case STATE_FADEOUT_START:
+    FadeCompleteFlag = FALSE;
+    state = STATE_FADEOUT;
+    /* Fall through */
   case STATE_FADEOUT:
     /* fade out */
-    if (!FadeCompleteFlag && !SKIP) {
-      processinput();
+    if (!FadeCompleteFlag) {
       if(GO) {
 	if (fade_dir)
 	  rolNFadeBlkMainPalArrayNLoadDAC(MainPalArray);
@@ -291,8 +296,6 @@ skip_logo:
 	  rolNFadeWhtMainPalArrayNLoadDAC(MainPalArray);
       }
     } else {
-      FadeCompleteFlag=!FadeCompleteFlag;
-      SKIP = FALSE;
       state = STATE_NEXT;
     }
   }
