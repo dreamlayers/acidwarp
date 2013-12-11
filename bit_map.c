@@ -11,7 +11,7 @@
  *                                    4     1
  */
 
-UCHAR TITLE_DATA [(X_TITLE * Y_TITLE / 4)] =
+static UCHAR TITLE_DATA [(X_TITLE * Y_TITLE / 4)] =
 { 
 	 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85,
 	 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85,
@@ -118,7 +118,8 @@ UCHAR TITLE_DATA [(X_TITLE * Y_TITLE / 4)] =
  * appropriate for the current palette. See 'switch (bits)' below.
  */
 
-void bit_map_uncompress (UCHAR *buf_graf, UCHAR *bit_data, int x_map, int y_map, int xmax, int ymax)
+static void bit_map_uncompress (UCHAR *buf_graf, UCHAR *bit_data,
+                                int x_map, int y_map, int xmax, int ymax)
 {
 	int x, y, tx, ty;
 

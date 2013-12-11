@@ -20,7 +20,7 @@ using these funcions.
 #define FRAME_SIZE          1023
 
 
-int Sin_Table [SIN_TABLE_SIZE] =
+static int Sin_Table [SIN_TABLE_SIZE] =
 {
     0,    3,    6,    9,   13,   16,   19,   22,
    25,   28,   31,   34,   38,   41,   44,   47,
@@ -169,7 +169,7 @@ long lut_cos (long angle)
 }
 */
 
-int Frame_Edge_Angle [FRAME_SIZE + 1] =
+static int Frame_Edge_Angle [FRAME_SIZE + 1] =
 {
 /* Experimental. Larger angle unit, looks smoother.
    Angle unit = 1024
@@ -382,7 +382,7 @@ int Frame_Edge_Angle [FRAME_SIZE + 1] =
   31,  31,  31,  31
 }; /* End Frame_Edge_Angle[] */
 
-int Frame_Edge_Distance [FRAME_SIZE + 1] =
+static int Frame_Edge_Distance [FRAME_SIZE + 1] =
 {
   1024,1024,1024,1024,1024,1024,1024,1024,1024,1024,
   1024,1024,1024,1024,1024,1024,1024,1024,1024,1024,
@@ -604,7 +604,7 @@ long lut_dist (long x, long y)
 
 
 
-
+#if 0
 #define SQUARE_TABLE_SIZE    200
 long SQUARE_TABLE [SQUARE_TABLE_SIZE] =
 {
@@ -634,6 +634,7 @@ long SQUARE_TABLE [SQUARE_TABLE_SIZE] =
   33856,  34225,  34596,  34969,  35344,  35721,  36100,  36481,
   36864,  37249,  37636,  38025,  38416,  38809,  39204,  39601,
 };
+#endif
 
 /* Many tables are hashed. Some tables are split into two parts to
  * save space. The works because some functions vary greatly at one

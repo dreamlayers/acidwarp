@@ -18,18 +18,6 @@
 #define BLUE 2
 #define NUM_PALETTE_TYPES       8
 
-void printStrArray(char *strArray[]);
-void rotatePalette(void);
-void rotateforward(int color, UCHAR *Pal);
-void rotatebackward(int color, UCHAR *Pal);
-void roll_rgb_palArray(UCHAR *Pal);
-void makeShuffledList(int *list, int listSize);
-void commandline(int argc, char *argv[]);
-void graphicsinit();
-int generate_image(int imageFuncNum, UCHAR *buf_graf, int xcenter, int ycenter, int xmax, int ymax, int colormax);
-void processinput();
-void newpal();
-
 void setSDLPalette(unsigned char *palette);
 
 

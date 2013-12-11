@@ -29,8 +29,6 @@
 #include "palinit.h"
 #include "rolnfade.h"
 
-
- 
 static SDL_Surface *surface;
 static SDL_Color sdlPalette[256];
 static int fullscreen;
@@ -44,23 +42,28 @@ static int winheight;
 #define NOAHS_FACE   0
 
 /* there are WAY too many global things here... */
-extern int RedRollDirection, GrnRollDirection, BluRollDirection;
-extern UINT FadeCompleteFlag;
-int VGAMODE;
-int VIRTUAL;
-int RES = 0;
-int ROTATION_DELAY = 30000;
+static int ROTATION_DELAY = 30000;
 /* GraphicsContext *physicalscreen; */
-int logo_time = 30, image_time = 20;
-int XMax = 319, YMax = 199;
-UCHAR *buf_graf = NULL;
-int GO = TRUE;
-int SKIP = FALSE;
-int NP = FALSE; /* flag indicates new palette */
-int LOCK = FALSE; /* flag indicates don't change to next image */
-UCHAR MainPalArray [256 * 3];
-UCHAR TargetPalArray [256 * 3];
+static int logo_time = 30, image_time = 20;
+static int XMax = 319, YMax = 199;
+static UCHAR *buf_graf = NULL;
+static int GO = TRUE;
+static int SKIP = FALSE;
+static int NP = FALSE; /* flag indicates new palette */
+static int LOCK = FALSE; /* flag indicates don't change to next image */
+static UCHAR MainPalArray [256 * 3];
+static UCHAR TargetPalArray [256 * 3];
 
+/* Prototypes for forward referenced functions */
+static void processinput(void);
+static void newpal(void);
+static void printStrArray(char *strArray[]);
+static void makeShuffledList(int *list, int listSize);
+static void graphicsinit(void);
+static int generate_image(int imageFuncNum, UCHAR *buf_graf,
+                          int xcenter, int ycenter, int xmax, int ymax,
+                          int colormax);
+static void commandline(int argc, char *argv[]);
 
 void setSDLPalette(unsigned char *palette) {
   int i;
@@ -74,7 +77,7 @@ void setSDLPalette(unsigned char *palette) {
   /* SDL_SetColors(surface, sdlPalette, 0, 256); */
 }
 
-void updateSDLSurface(void) { 
+static void updateSDLSurface(void) {
   int row;
   unsigned char *outp;
   unsigned char *inp = buf_graf;
@@ -125,7 +128,6 @@ void updateSDLSurface(void) {
 }
 
 #undef main
-
 
 int main (int argc, char *argv[])
 {
@@ -263,7 +265,7 @@ int main (int argc, char *argv[])
 
 /* ------------------------END MAIN----------------------------------------- */
 
-void newpal()
+static void newpal()
 {
   int paletteTypeNum;
   
@@ -273,7 +275,7 @@ void newpal()
   setSDLPalette(MainPalArray);
 }
 
-void handleinput(int key)
+static void handleinput(int key)
 {
   switch(key)
     {
@@ -310,7 +312,7 @@ void handleinput(int key)
     }
 }
 
-void handleInputChar(int c) {
+static void handleInputChar(int c) {
   int r;
   
   switch (c) {
@@ -383,7 +385,7 @@ void processinput() {
 
 
 
-void commandline(int argc, char *argv[])
+static void commandline(int argc, char *argv[])
 {
   int argNum;
 
@@ -602,10 +604,6 @@ void printStrArray(char *strArray[])
   
   for (strPtr = strArray; **strPtr; ++strPtr)
     printf ("%s", *strPtr);
-}
-
-void restoreOldVideoMode (void)
-{
 }
 
 void makeShuffledList(int *list, int listSize)

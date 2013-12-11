@@ -3,6 +3,12 @@
 #include "acidwarp.h"
 #include "palinit.h"
 
+static void add_sparkles_to_palette (UCHAR *palArray, int sparkle_amount);
+static void init_rgbw_palArray (UCHAR *palArray);
+static void init_w_palArray (UCHAR *palArray);
+static void init_w_half_palArray (UCHAR *palArray);
+static void init_pastel_palArray (UCHAR *palArray);
+
 /* Initialzes a palette array to one of the palette types      */
 void initPalArray (UCHAR *palArray, int pal_type)
 {
@@ -50,7 +56,7 @@ void initPalArray (UCHAR *palArray, int pal_type)
 }
 
 
-void add_sparkles_to_palette (UCHAR *palArray, int sparkle_amount)
+static void add_sparkles_to_palette (UCHAR *palArray, int sparkle_amount)
 {
   int palRegNum;
 
@@ -62,7 +68,7 @@ void add_sparkles_to_palette (UCHAR *palArray, int sparkle_amount)
   }
 }
 
-void init_rgbw_palArray (UCHAR *palArray)
+static void init_rgbw_palArray (UCHAR *palArray)
 {
 	int palRegNum;
 
@@ -104,7 +110,7 @@ void init_rgbw_palArray (UCHAR *palArray)
 }
 
 
-void init_w_palArray (UCHAR *palArray)
+static void init_w_palArray (UCHAR *palArray)
 {
         int palRegNum;
 
@@ -124,7 +130,7 @@ void init_w_palArray (UCHAR *palArray)
 
 }
 
-void init_w_half_palArray (UCHAR *palArray)
+static void init_w_half_palArray (UCHAR *palArray)
 {
 	int palRegNum;
 
@@ -147,7 +153,7 @@ void init_w_half_palArray (UCHAR *palArray)
 	}
 }
 
-void init_pastel_palArray (UCHAR *palArray)
+static void init_pastel_palArray (UCHAR *palArray)
 {
 	int palRegNum;
 

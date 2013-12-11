@@ -6,16 +6,17 @@
 #include "rolnfade.h"
 #include "palinit.h"
 
-int RedRollDirection = 0, GrnRollDirection = 0, BluRollDirection = 0;
+static int RedRollDirection = 0, GrnRollDirection = 0, BluRollDirection = 0;
 UINT FadeCompleteFlag = 0;
 
-/*
-extern UCHAR MainPalArray  [256 * 3];
-extern UCHAR TargetPalArray  [256 * 3];
-extern UCHAR TempPalArray [256 * 3];
-*/
+static void roll_rgb_palArray (UCHAR *MainpalArray);
+static void maybeInvertSubPalRollDirection(void);
+static int fadePalArrayToWhite (UCHAR *MainpalArray);
+static int fadePalArrayToBlack (UCHAR *MainpalArray);
+static int fadePalArrayToTarget (UCHAR *palArrayBeingChanged,
+                                 UCHAR *targetPalArray);
 
-void rotatebackward(int color, UCHAR *Pal)
+static void rotatebackward(int color, UCHAR *Pal)
 {
   int temp;
   int x;
@@ -28,7 +29,7 @@ void rotatebackward(int color, UCHAR *Pal)
   
 }
 
-void rotateforward(int color, UCHAR *Pal)
+static void rotateforward(int color, UCHAR *Pal)
 {  
   int temp;
   int x;
@@ -86,6 +87,7 @@ void rolNFadeMainPalAryToTargNLodDAC(UCHAR *MainPalArray, UCHAR *TargetPalArray)
     rollMainPalArrayAndLoadDACRegs(MainPalArray);
 }
 
+#if 0
 /* WARNING! This is the function that handles the case of the SPECIAL PALETTE TYPE.
    This palette type is special in that there is no specific palette assigned to its
    palette number. Rather the palette is morphed from one static palette to another.
@@ -102,6 +104,7 @@ void rolNFadMainPalAry2RndTargNLdDAC(UCHAR *MainPalArray, UCHAR *TargetPalArray)
 	roll_rgb_palArray (TargetPalArray);
 		setSDLPalette(MainPalArray);
 }
+#endif
 
 /**********************************************************************************/
 
@@ -109,7 +112,7 @@ void rolNFadMainPalAry2RndTargNLdDAC(UCHAR *MainPalArray, UCHAR *TargetPalArray)
 	or to the values of another ("target") palette array.
 */
 
-int fadePalArrayToWhite (UCHAR *palArray)
+static int fadePalArrayToWhite (UCHAR *palArray)
 {
 /* Returns DONE if the entire palette is white, else NOT_DONE */
 
@@ -126,7 +129,7 @@ int fadePalArrayToWhite (UCHAR *palArray)
 	return ((num_white >= 765) ? DONE : NOT_DONE);
 }
 
-int fadePalArrayToBlack (UCHAR *palArray)
+static int fadePalArrayToBlack (UCHAR *palArray)
 {	/* Returns DONE if the entire palette is black, else NOT_DONE	 */
 	int palByteNum, num_black = 0;
 
@@ -143,7 +146,8 @@ int fadePalArrayToBlack (UCHAR *palArray)
 
 /* Increments (fades) every color in palArrayBeingChanged closer to the corresponding color in targetPalArray.	*/
 
-int fadePalArrayToTarget (UCHAR *palArrayBeingChanged, UCHAR *targetPalArray)
+static int fadePalArrayToTarget (UCHAR *palArrayBeingChanged,
+                                 UCHAR *targetPalArray)
 {													/* Returns DONE if the two palette arrays are equal, else NOT_DONE.	*/
 	int palByteNum, num_equal = 0;
 
@@ -163,7 +167,7 @@ int fadePalArrayToTarget (UCHAR *palArrayBeingChanged, UCHAR *targetPalArray)
 /**********************************************************************************/
 
 /* Rolls the R, G, and B components of the palette ONE place in the direction specified by r, g, and b.	*/
-void roll_rgb_palArray(UCHAR *Pal)
+static void roll_rgb_palArray(UCHAR *Pal)
 {
     if (!RedRollDirection)
          rotateforward(RED,Pal);
@@ -185,7 +189,7 @@ void roll_rgb_palArray(UCHAR *Pal)
  * 1/DIRECTN_CHANGE_PERIOD_IN_TICKS, when it is called by the timer ISR.  Only one color direction can change at a time.
  */
 
-void maybeInvertSubPalRollDirection(void)
+static void maybeInvertSubPalRollDirection(void)
 {
   switch (RANDOM(DIRECTN_CHANGE_PERIOD_IN_TICKS))
 	{

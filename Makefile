@@ -9,7 +9,7 @@ LDFLAGS = $(CFLAGS) -static
 
 else
 
-CFLAGS = -Wall -g -O2 $(shell sdl-config --cflags) -DSDL
+CFLAGS = -Wall -Wmissing-prototypes -g -O2 $(shell sdl-config --cflags) -DSDL
 LIBS = $(shell sdl-config --libs)
 LDFLAGS = $(CFLAGS)
 
