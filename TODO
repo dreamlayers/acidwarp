@@ -1,4 +1,6 @@
-Support p option.
-make a console screen saver version.
-make an X11 version.
-key to individual keys for each color, R, G, and B ?
+* make a console screen saver version.
+* key to individual keys for each color, R, G, and B ?
+* allow svgalib and X versions to be compiled from the same source
+* make an X screen saver version
+* add optimized routines for 24 bpp and maybe 1 and 4 bpp (note that most
+  "24 bpp" is apparently 32 bpp)

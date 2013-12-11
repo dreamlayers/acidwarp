@@ -1,6 +1,6 @@
 /* ACIDWARP.H */
 
-#define VERSION "Acid Warp Version 4.10 (C)Copyright 1992, 1993 by Noah Spurrier and Mark Bilk\nLinux port by Steven Wills"
+#define VERSION "Acid Warp Version 4.10 (C)Copyright 1992, 1993 by Noah Spurrier and Mark Bilk\nLinux port by Steven Wills\nX11 port by Boris Gjenero"
 #define DIRECTN_CHANGE_PERIOD_IN_TICKS               256
 
 /* Palette types  */

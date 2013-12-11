@@ -1,15 +1,19 @@
 /* ACID WARP (c)Copyright 1992, 1993 by Noah Spurrier
  * All Rights reserved. Private Proprietary Source Code by Noah Spurrier
  * Ported to Linux by Steven Wills
+ * Ported to X by Boris Gjenero
  */
+
 #include <malloc.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#ifdef SVGALIB
 #include <vga.h>
 #include <vgagl.h>
 #include <vgakeyboard.h>
+#endif
 #include <unistd.h>
 
 #include "warp_text.c"
@@ -19,6 +23,11 @@
 #include "bit_map.h"
 #include "palinit.h"
 #include "rolnfade.h"
+
+#ifdef LIBXPCE
+#include <X11/keysym.h>
+#include "libxpce/libxpce.h"
+#endif
 
 #define NUM_IMAGE_FUNCTIONS 40
 #define NOAHS_FACE   0
@@ -30,10 +39,10 @@ int VGAMODE;
 int VIRTUAL;
 int RES = 0;
 int ROTATION_DELAY = 30000;
-GraphicsContext *physicalscreen;
+/* GraphicsContext *physicalscreen; */
 int logo_time = 30, image_time = 20;
 int XMax = 0, YMax = 0;
-UCHAR *buf_graf;
+extern UCHAR *buf_graf;
 int GO = TRUE;
 int SKIP = FALSE;
 int NP = FALSE; /* flag indicates new palette */
@@ -41,11 +50,11 @@ int LOCK = FALSE; /* flag indicates don't change to next image */
 UCHAR MainPalArray [256 * 3];
 UCHAR TargetPalArray [256 * 3];
 
-void main (int argc, char *argv[])
+int main (int argc, char *argv[])
 {
   int imageFuncList[NUM_IMAGE_FUNCTIONS], userOptionImageFuncNum;
   int paletteTypeNum = 0, userPaletteTypeNumOptionFlag = FALSE;
-  int argNum, imageFuncListIndex=0, fade_dir = TRUE;
+  int imageFuncListIndex=0, fade_dir = TRUE;
   time_t ltime, mtime;
 
   RANDOMIZE();
@@ -62,17 +71,29 @@ void main (int argc, char *argv[])
   
   graphicsinit();
 
-  physicalscreen = gl_allocatecontext(); 
+#ifdef SVGALIB
+  physicalscreen = gl_allocatecontext();
   gl_getcontext(physicalscreen);
+#endif
 
   initPalArray(MainPalArray, RGBW_LIGHTNING_PAL);
   initPalArray(TargetPalArray, RGBW_LIGHTNING_PAL);
-  gl_setpalettecolors(0, 256, MainPalArray); 
+#ifdef LIBXPCE
+  xpce_SetPalette(MainPalArray);
+#endif
+#ifdef SVGALIB
+  gl_setpalettecolors(0, 256, MainPalArray);
+#endif
 
   if (logo_time != 0) {
     /* show the logo for a while */
     writeBitmapImageToArray(buf_graf, NOAHS_FACE, XMax, YMax);
+#ifdef SVGALIB
     gl_putbox(1,1,XMax,YMax,buf_graf);
+#endif
+#ifdef LIBXPCE
+    xpce_DrawImage();
+#endif
     ltime=time(NULL);
     mtime=ltime + logo_time;
     for(;;) {
@@ -113,9 +134,21 @@ void main (int argc, char *argv[])
 		   (userOptionImageFuncNum < 0) ? 
 		   imageFuncList[imageFuncListIndex] : 
 		   userOptionImageFuncNum, 
-		   buf_graf, XMax/2, YMax/2, XMax, YMax, 255);
-    gl_putbox(1,1,XMax,YMax,buf_graf);
-    
+		   buf_graf, XMax/2, YMax/2, XMax, YMax, 
+#ifdef LIBXPCE
+		   xpce_GetNumColors()-1
+#else
+		   255
+#endif
+		   );
+
+#ifdef SVGALIB
+    gl_putbox(1,1,XMax,YMax,buf_graf); 
+#endif
+#ifdef LIBXPCE
+    xpce_DrawImage();
+#endif
+
     /* create new palette */
     paletteTypeNum = RANDOM(NUM_PALETTE_TYPES +1);
     initPalArray(TargetPalArray, paletteTypeNum);
@@ -128,7 +161,12 @@ void main (int argc, char *argv[])
       if(SKIP)
 	break;
       usleep(ROTATION_DELAY);
+#ifdef SVGALIB
       gl_setpalettecolors(0, 256, MainPalArray);
+#endif
+#ifdef LIBXPCE
+      xpce_SetPalette(MainPalArray);
+#endif
     }
     
     FadeCompleteFlag=!FadeCompleteFlag;
@@ -157,11 +195,12 @@ void main (int argc, char *argv[])
       if(SKIP) 
 	break;
       processinput();
-      if(GO)
+      if(GO) {
 	if (fade_dir)
 	  rolNFadeBlkMainPalArrayNLoadDAC(MainPalArray);
 	else
 	  rolNFadeWhtMainPalArrayNLoadDAC(MainPalArray);
+      }
       usleep(ROTATION_DELAY);
     }
     FadeCompleteFlag=!FadeCompleteFlag;
@@ -170,6 +209,8 @@ void main (int argc, char *argv[])
   /* exit */
   printStrArray(Command_summary_string);
   printf("%s\n", VERSION);
+
+  return 0;
 }
 
 /* ------------------------END MAIN----------------------------------------- */
@@ -180,9 +221,15 @@ void newpal()
   
   paletteTypeNum = RANDOM(NUM_PALETTE_TYPES +1);
   initPalArray(MainPalArray, paletteTypeNum);
+#ifdef SVGALIB
   gl_setpalettecolors(0, 256, TargetPalArray);
+#endif
+#ifdef LIBXPCE
+  xpce_SetPalette(MainPalArray);
+#endif
 }
 
+#if 0
 int checkinput()
 {
   keyboard_update();
@@ -221,14 +268,20 @@ int checkinput()
       keyboard_update();
     return 7;
   }
-
   /* default case */
   return 0;
 }
+#endif
 
-void processinput()
+#ifdef LIBXPCE
+void processinput() {
+  xpce_HandleEvents();
+}  
+#endif
+
+void handleinput(int key)
 {
-  switch(checkinput())
+  switch(key)
     {
     case 1:
       if(GO)
@@ -240,6 +293,10 @@ void processinput()
       SKIP = TRUE;
       break;
     case 3:
+#ifdef LIBXPCE
+      xpce_QuitNotify();
+      xpce_CloseGraph();
+#endif
       exit(0);
       break;
     case 4:
@@ -262,6 +319,53 @@ void processinput()
     }
 }
 
+
+#ifdef LIBXPCE
+void xpceC_HandleInputChar(int c) {
+  int r;
+  
+  switch (c) {
+  case 'p':
+  case 'P':        r = 1;     break;
+  case 'n':
+  case 'N':        r = 2;     break;
+  case 'q':
+  case 'Q':        r = 3;     break;
+      
+  case 'k':
+  case 'K':        r = 4;     break;
+  case 'l':
+  case 'L':        r = 5;     break;
+  default:
+    return;
+  }
+  handleinput(r);
+}
+
+void xpceC_HandleInputKeySym(int k) {
+  int r;
+
+  switch (k) {
+  case XK_Up:       r = 6;     break;
+  case XK_Down:     r = 7;     break;
+  default:
+    return;
+  }
+  handleinput(r);
+}
+
+void xpceC_QuitRequest() {
+  handleinput(3);
+}
+
+void xpceC_HandleResize(unsigned int xsize, unsigned int ysize) {
+  XMax = xsize - 1;
+  YMax = ysize - 1;
+  SKIP = TRUE;
+}
+#endif
+
+
 void commandline(int argc, char *argv[])
 {
   int argNum;
@@ -272,35 +376,49 @@ void commandline(int argc, char *argv[])
       if (!strcmp("-w",argv[argNum])) {
         printStrArray(The_warper_string);
         exit (0);
-      }
+      } 
+      else
       if (!strcmp("-h",argv[argNum])) {
         printStrArray(Help_string);
+#ifdef LIBXPCE	
+	xpce_CLHelp();
+#endif
         printf("\n%s\n", VERSION);
         exit (0);
       }
-      if(!strcmp("-r",argv[argNum])) {
-         if((argc-1) > argNum) {
-          argNum++;
-          RES=atoi(argv[argNum]);
-          if ((RES != 1) && (RES != 2) && (RES !=3))
-            RES = 0;
-        }
-      }
+      else
       if(!strcmp("-n",argv[argNum])) {
         logo_time = 0;
       }
+#if 0
+      else
+      if(!strcmp("-r",argv[argNum])) {
+        XMax = -1;
+	YMax = -1;
+      }
+#endif
+      else
       if(!strcmp("-d",argv[argNum])) {
         if((argc-1) > argNum) {
           argNum++;
           image_time = atoi(argv[argNum]);
         }
       }
+      else
       if(!strcmp("-s", argv[argNum])) {
         if((argc-1) > argNum) {
           argNum++;
           ROTATION_DELAY = atoi(argv[argNum]);
         }
       }
+      else
+#ifdef LIBXPCE
+	if (!xpce_ProcessOption(argc, argv, &argNum))
+#endif
+	  {
+	    fprintf(stderr, "Unknown option \"%s\"\n", argv[argNum]);
+	    exit(-1);
+	  }
     }
   }
 }  
@@ -308,6 +426,7 @@ void commandline(int argc, char *argv[])
 void graphicsinit()
 {
   /* setup the screen */
+  /*
   switch (RES)
     {
     case 0:
@@ -335,7 +454,26 @@ void graphicsinit()
       memset(buf_graf,0x00, (size_t)(1024*768));
       break;
     }
-  vga_init();
+  */
+
+  if (XMax == 0 || YMax == 0) {
+    XMax = 319;
+    YMax = 199;
+  }
+
+#ifdef LIBXPCE
+   fprintf(stderr, "DISPLAY=\"%s\"\n", getenv("DISPLAY"));
+   xpce_InitGraph();
+
+   XMax = xpce_GetWidth()-1;
+   YMax = xpce_GetHeight()-1;
+#endif
+
+#ifdef SVGALIB
+   vga_init();
+#endif
+
+#if 0
   switch (RES)
     {
     case 0:
@@ -351,7 +489,10 @@ void graphicsinit()
       VGAMODE=G1024x768x256;
       break;
     }
+#endif
   VIRTUAL=0;
+
+#ifdef SVGALIB
   vga_setmode(VGAMODE);
   
   if (keyboard_init()) {
@@ -359,6 +500,8 @@ void graphicsinit()
     exit(1);
   }
   gl_setcontextvga(VGAMODE);  /* Physical screen context. */
+#endif
+
 }
 
 void printStrArray(char *strArray[])
@@ -370,25 +513,28 @@ void printStrArray(char *strArray[])
     printf ("%s", *strPtr);
 }
 
+#if 0
 void setNewVideoMode (void)
 {
   vga_setmode(G320x200x256);
 }
+#endif
 
 void restoreOldVideoMode (void)
 {
-  vga_setmode(TEXT);
 }
 
+#if 0
 void writePixel(int x, int y, int color)
 {
   int temp;
   
-  /*  temp = vga_getcolors(); */
+  temp = vga_getcolors();
   vga_setcolor(color);
   vga_drawpixel(x,y);
-  /* vga_setcolor(temp); */
+  vga_setcolor(temp);
 }
+#endif
 
 void makeShuffledList(int *list, int listSize)
 {
@@ -413,7 +559,7 @@ int generate_image(int imageFuncNum, UCHAR *buf_graf, int xcenter, int ycenter, 
   /* WARNING!!! Major change from long to int.*/
   /* ### Changed back to long. Gives lots of warnings. Will fix soon. */
   
-  long /* int */ x, y, dx, dy, dist, angle;
+  long /* int */ x, y, dx, dy, dist, angle, xsize = xmax + 1;
   long color;
   
   /* Some general purpose random angles and offsets. Not all functions use them. */
@@ -600,8 +746,8 @@ int generate_image(int imageFuncNum, UCHAR *buf_graf, int xcenter, int ycenter, 
 	      if (y == 0 || x == 0)
 		color = RANDOM (16);
 	      else
-		color = (  *(buf_graf + (xmax *  y   ) + (x-1))
-			   + *(buf_graf + (xmax * (y-1)) +    x)) / 2
+		color = (  *(buf_graf + (xsize *  y   ) + (x-1))
+			   + *(buf_graf + (xsize * (y-1)) +    x)) / 2
                   + RANDOM (16) - 8;
 	      break;
 	      
@@ -609,8 +755,8 @@ int generate_image(int imageFuncNum, UCHAR *buf_graf, int xcenter, int ycenter, 
 	      if (y == 0 || x == 0)
 		color = RANDOM (1024);
 	      else
-		color = dist/6 + (*(buf_graf + (xmax * y    ) + (x-1))
-				  +  *(buf_graf + (xmax * (y-1)) +    x)) / 2
+		color = dist/6 + (*(buf_graf + (xsize * y    ) + (x-1))
+				  +  *(buf_graf + (xsize * (y-1)) +    x)) / 2
 		+ RANDOM (16) - 8;
 	      break;
 	      
@@ -632,8 +778,8 @@ int generate_image(int imageFuncNum, UCHAR *buf_graf, int xcenter, int ycenter, 
 	      if (y == 0 || x == 0)
 		color = RANDOM (16);
 	      else
-		color = (  *(buf_graf + (xmax *  y   ) + (x-1))
-			   + *(buf_graf + (xmax * (y-1)) +  x   )  ) / 2;
+		color = (  *(buf_graf + (xsize *  y   ) + (x-1))
+			   + *(buf_graf + (xsize * (y-1)) +  x   )  ) / 2;
 	      
 	      color += RANDOM (2) - 1;
 	      
@@ -647,8 +793,8 @@ int generate_image(int imageFuncNum, UCHAR *buf_graf, int xcenter, int ycenter, 
 	      if (y == 0 || x == 0)
 		color = RANDOM (16);
 	      else
-		color = (  *(buf_graf + (xmax *  y   ) + (x-1))
-			   + *(buf_graf + (xmax * (y-1)) +  x   )  ) / 2;
+		color = (  *(buf_graf + (xsize *  y   ) + (x-1))
+			   + *(buf_graf + (xsize * (y-1)) +  x   )  ) / 2;
 	      
 	      if (color < 100)
 		color += RANDOM (16) - 8;
@@ -732,7 +878,7 @@ int generate_image(int imageFuncNum, UCHAR *buf_graf, int xcenter, int ycenter, 
 	  ++color;
           /* color 0 is never used, so all colors are from 1 through 255 */
 	  
-	  *(buf_graf + (xmax * y) + x) = (UCHAR)color;
+	  *(buf_graf + (xsize * y) + x) = (UCHAR)color;
           /* Store the color in the buffer */
 	}
       /* end for (y = 0; y < ymax; ++y)	*/
@@ -745,7 +891,7 @@ int generate_image(int imageFuncNum, UCHAR *buf_graf, int xcenter, int ycenter, 
       color = (x <= 255) ? x : 0;
       
       for (y = 0; y < 3; ++y)
-	*(buf_graf + (xmax * y) + x) = (UCHAR)color;
+	*(buf_graf + (xsize * y) + x) = (UCHAR)color;
     }
 #endif
   

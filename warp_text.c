@@ -10,7 +10,9 @@ char *Command_summary_string[] =
 	"\n All options should be preceded with a - (dash). \n",
 	"\nExecute this program with any of the following arguments from the command line:\n",
 	"\nd <n> = Set delay after each picture, where <n> is a number of seconds to pause.\n",
+#ifdef SVGALIB
         "\nr <n> = Use high resolution. 1 = 640x480, 2 = 800x600, 3 = 1024x768.\n",
+#endif
 	"\ns <n> = Set the speed of the palette rotation. Just experiment with this one.\n",
 	"n     = No Logo! This option tells acidwarp not to display the logo at startup.\n",
 	"w     = Print info on building \"The Warper\". You may wish to redirect to\n",
@@ -53,12 +55,14 @@ char *Help_string[] =
 	"      followed by a number of seconds to delay. DO add a space between\n",
 	"      the 'd' and the number of seconds. The default delay is 20 seconds.\n",
 	"\n",
+#ifdef SVGALIB
         "'r' - An option to use higher resolutions has been implemented. This option\n",
         "      should be followed by a number, either 1, 2 or 3, indicating what\n", 
         "      resolution to use. 1 indicates 640x480, 2 indicates 800x600, and \n",
         "      3 indicates a whopping 1024x768! NOTE: it can take a while to\n",
         "      generate an image at higher resolutions, especially on slower machines.\n",
         "\n",
+#endif
 	"'n'   This option tells acidwarp not to display the logo at starup.\n",
         "\n",
         "'s' - Speed. This option controls the speed at which the palettes rotate. \n",

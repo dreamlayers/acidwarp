@@ -126,6 +126,10 @@ void bit_map_uncompress (UCHAR *buf_graf, UCHAR *bit_data, int x_map, int y_map,
 
 	int bits2;
 
+	int xsize;
+	
+	xsize = xmax + 1;
+
 	beg_x = (xmax - 2 * x_map) / 2;
 	beg_y = (ymax - 2 * y_map) / 2;
 	end_x = 2 * x_map + beg_x;
@@ -197,31 +201,31 @@ void bit_map_uncompress (UCHAR *buf_graf, UCHAR *bit_data, int x_map, int y_map,
 			}
 */
 				case 0 :
-          *(buf_graf + xmax * (y+0) + (x+0)) = (UCHAR)RANDOM(8) + 192 + 0;
-          *(buf_graf + xmax * (y+1) + (x+0)) = (UCHAR)RANDOM(8) + 192 + 0;
-          *(buf_graf + xmax * (y+0) + (x+1)) = (UCHAR)RANDOM(8) + 192 + 0;
-          *(buf_graf + xmax * (y+1) + (x+1)) = (UCHAR)RANDOM(8) + 192 + 0;
+          *(buf_graf + xsize * (y+0) + (x+0)) = (UCHAR)RANDOM(8) + 192 + 0;
+          *(buf_graf + xsize * (y+1) + (x+0)) = (UCHAR)RANDOM(8) + 192 + 0;
+          *(buf_graf + xsize * (y+0) + (x+1)) = (UCHAR)RANDOM(8) + 192 + 0;
+          *(buf_graf + xsize * (y+1) + (x+1)) = (UCHAR)RANDOM(8) + 192 + 0;
 				break;
 
 				case 1 :
-          *(buf_graf + xmax * (y+0) + (x+0)) = (UCHAR)RANDOM(8) + 192 + 9;
-          *(buf_graf + xmax * (y+1) + (x+0)) = (UCHAR)RANDOM(8) + 192 + 9;
-          *(buf_graf + xmax * (y+0) + (x+1)) = (UCHAR)RANDOM(8) + 192 + 9;
-          *(buf_graf + xmax * (y+1) + (x+1)) = (UCHAR)RANDOM(8) + 192 + 9;
+          *(buf_graf + xsize * (y+0) + (x+0)) = (UCHAR)RANDOM(8) + 192 + 9;
+          *(buf_graf + xsize * (y+1) + (x+0)) = (UCHAR)RANDOM(8) + 192 + 9;
+          *(buf_graf + xsize * (y+0) + (x+1)) = (UCHAR)RANDOM(8) + 192 + 9;
+          *(buf_graf + xsize * (y+1) + (x+1)) = (UCHAR)RANDOM(8) + 192 + 9;
 				break;
 
 				case 2 :
-          *(buf_graf + xmax * (y+0) + (x+0)) = (UCHAR)RANDOM(8) + 192 + 17;
-          *(buf_graf + xmax * (y+1) + (x+0)) = (UCHAR)RANDOM(8) + 192 + 17;
-          *(buf_graf + xmax * (y+0) + (x+1)) = (UCHAR)RANDOM(8) + 192 + 17;
-          *(buf_graf + xmax * (y+1) + (x+1)) = (UCHAR)RANDOM(8) + 192 + 17;
+          *(buf_graf + xsize * (y+0) + (x+0)) = (UCHAR)RANDOM(8) + 192 + 17;
+          *(buf_graf + xsize * (y+1) + (x+0)) = (UCHAR)RANDOM(8) + 192 + 17;
+          *(buf_graf + xsize * (y+0) + (x+1)) = (UCHAR)RANDOM(8) + 192 + 17;
+          *(buf_graf + xsize * (y+1) + (x+1)) = (UCHAR)RANDOM(8) + 192 + 17;
 				break;
 
 				case 3 :
-          *(buf_graf + xmax * (y+0) + (x+0)) = (UCHAR)RANDOM(8) + 192 + 25;
-          *(buf_graf + xmax * (y+1) + (x+0)) = (UCHAR)RANDOM(8) + 192 + 25;
-          *(buf_graf + xmax * (y+0) + (x+1)) = (UCHAR)RANDOM(8) + 192 + 25;
-          *(buf_graf + xmax * (y+1) + (x+1)) = (UCHAR)RANDOM(8) + 192 + 25;
+          *(buf_graf + xsize * (y+0) + (x+0)) = (UCHAR)RANDOM(8) + 192 + 25;
+          *(buf_graf + xsize * (y+1) + (x+0)) = (UCHAR)RANDOM(8) + 192 + 25;
+          *(buf_graf + xsize * (y+0) + (x+1)) = (UCHAR)RANDOM(8) + 192 + 25;
+          *(buf_graf + xsize * (y+1) + (x+1)) = (UCHAR)RANDOM(8) + 192 + 25;
 				break;
 			}
 		}
