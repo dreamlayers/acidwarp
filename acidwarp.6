@@ -1,18 +1,17 @@
 .TH ACIDWARP 6 "December 2000"
 .SH NAME
-xacidwarp \- Colour cycling eye\-candy for X
+acidwarp \- Colour cycling eye\-candy
 .SH SYNOPSIS
-.B xacidwarp
+.B acidwarp
 [
 .B options
 ] 
 .SH DESCRIPTION
-XAcidwarp is an eye candy program that runs in X Windows.  It is an X
-port of Acidwarp.  For more information go to
+Acidwarp is an eye candy program For more information go to
 http://www.noah.org/acidwarp/
 .SH COMMAND\-LINE OPTIONS
 No options are necessary. Just type 
-.B xacidwarp
+.B acidwarp
 and watch the show. However, you can give the following arguments at the command-line:
 .TP 
 .B -d --delay seconds
@@ -24,117 +23,13 @@ Prints a help screen.
 .B -n --nologo
 Tells acidwarp not to display the logo at starup.
 .TP 
-.B -r --resolution res
-Specifies the resolution at which
-.B acidwarp
-should run.  This option should be followed by a number, either 1, 2 or 3, 
-indicating what resolution to use. 1 indicates 640x480, 2 indicates 800x600, and
-3 indicates 1024x768. 
-.B NOTE: it can take a while to generate an image at higher resolutions, especially on slower machines.
-.TP 
 .B -s --speed microseconds
 Specifies the speed of the palette rotation. Defaults to 25000.
 .TP 
 .B -w --warper
 Prints a text file explaining how to build "The Warper".
-.SH X OPTIONS
-The X Window display support has many options, but you can probably just 
-run xacidwarp with no options and everything will work right.  These options
-are listed in order of usefulness.
-.TP
-.B -R
-Display in the root window.  Note the if you want to use a private
-colormap you will have to use the -g or -G options.  Also, note that
-xacidwarp will accept keystrokes, but some window managers won't ever
-deliver keystrokes to the root window so you may not be able to control
-xacidwarp.  If that happens all you can do is either let it run or kill
-it with ^C in the terminal window that it started in or a kill from
-anywhere.
-.TP
-.B -B
-Retain last image as root window background.  This only happens if you
-exit from full screen on root window mode.
-.TP 
-.B -f
-Start in full-screen mode.  You can switch between full screen and windowed
-modes using <Alt>+<Enter> or <Ctrl>+<Enter>.
-.TP
-.B -F
-Use OverrideRedirect for full screen mode.  Try this if full screen
-mode just displays a window the same size as the screen.
-OverrideRedirect ensures that the window manager can't prevent full
-screen mode.  It may also prevent the right colormap from being
-installed if you use a private colormap.  If that is a problem try the
--g or -G option.
-.TP
-.B -D
-Use XFree86-DGA for full screen mode.  This allows direct access to
-the frame buffer.  It will speed things up in modes that don't have a
-writeable colormap, and it will prevent anything from interfering with
-full screen mode.  Note that this will only work if your X server
-supports the XFree86-DGA extension, xacidwarp is on the same machine
-as the server and the program is run as root.
-.TP
-.B -x n
-Set width.  The width must be greater than 0.  Note that you can also resize
-the window.
-.TP
-.B -y n
-Set height.  The width must be greater than 0.  Note that you can also resize
-the window.
-.TP
-.B -v name
-Select a visual handler for windowed mode.  Give ? as an argument to list 
-choices.
-.TP
-.B -W name
-Select a visual handler for full screen mode.  Give ? as an argument to list 
-choices.
-.TP
-.B -V n
-Select a visual class.  Use Default to select the default visual or give a
-numeric visual id.  If the number starts with 0x it will be interpreted as
-hex.  You can use xdpyinfo to list visuals and their IDs.
-.TP
-.B -I
-Use a private colormap (palette).  This will give you more colormap
-entries in modes with a writable colormap.  Unfortunately, most
-hardware supports only one colormap at a time, and so all other colors
-will be wrong while acidwarp's colormap is installed and acidwarp's
-colors will be wrong when some other colormap is installed.
-.TP
-.B -i
-Use the default colormap (palette).  This avoids the problems listed
-above, but it will also probably degrade image quality.
-.TP
-.B -c
-Set the maximum number of colors to allocate.  This option only makes
-sense when using the default colormap with a visual class with a
-writeable colormap.
-.TP
-.B -g
-Grab control of the colormap using the ICCCM 2.0 WM_COLORMAP_NOTIFY
-message.  Note that many window managers don't support this.
-.TP
-.B -G
-Grab the colormap by making ours the root window colormap.  This is a
-bad thing but it may be the only way to grab control of the colormap
-if your window manager doesn't support the ICCCM 2.0 method.
-.TP
-.B -p
-Only grab colormap when in root or full screen mode.
-.TP
-.B -S
-Disable use of MIT-SHM extension.  This shouldn't ever be necessary.
-.TP
-.B -A
-Always use XAllocColor to get pixel values.  This is a debugging
-option.
-.TP
-.B -P
-Use XPutPixel to draw into XImage.  This is a debugging option.
 .SH KEYBOARD COMMANDS
-When xacidwarp is running you can control it with keyboard commands.
+When acidwarp is running you can control it with keyboard commands.
 .TP
 .B Up
 causes the pallette to rotate faster.
@@ -163,7 +58,7 @@ are Noah Spurrier (noah@noah.org) and Mark Bilk.
 .PP
 The Linux port was done by Steven Wills (willssl@jmu.edu).
 .PP
-The X11 port was done by Boris Gjenero (bgjenero@sympatico.ca).
+The SDL port was done by Boris Gjenero (boris.gjenero@gmail.com).
 .PP
 This man page was written by Michael Sterrett (msterret@css.tayloru.edu) and updated by Boris Gjenero.
 .SH COPYRIGHT

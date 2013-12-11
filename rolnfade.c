@@ -5,13 +5,6 @@
 #include "acidwarp.h"
 #include "rolnfade.h"
 #include "palinit.h"
-#ifdef SVGALIB
-#include <vga.h>
-#include <vgagl.h>
-#endif
-#ifdef LIBXPCE
-#include "libxpce/libxpce.h"
-#endif
 
 int RedRollDirection = 0, GrnRollDirection = 0, BluRollDirection = 0;
 UINT FadeCompleteFlag = 0;
@@ -51,11 +44,7 @@ void rollMainPalArrayAndLoadDACRegs(UCHAR *MainPalArray)
 {
         maybeInvertSubPalRollDirection();
         roll_rgb_palArray(MainPalArray);
-#if defined(LIBXPCE)
-        xpce_SetPalette(MainPalArray);
-#elif defined(SDL)
 		setSDLPalette(MainPalArray);
-#endif
 }
 
 
@@ -111,11 +100,7 @@ void rolNFadMainPalAry2RndTargNLdDAC(UCHAR *MainPalArray, UCHAR *TargetPalArray)
 	maybeInvertSubPalRollDirection();
 	roll_rgb_palArray (  MainPalArray);
 	roll_rgb_palArray (TargetPalArray);
-#if defined(LIBXPCE)
-        xpce_SetPalette(MainPalArray);
-#elif defined(SDL)
 		setSDLPalette(MainPalArray);
-#endif
 }
 
 /**********************************************************************************/

@@ -9,14 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#ifdef SVGALIB
-#include <vga.h>
-#include <vgagl.h>
-#include <vgakeyboard.h>
-#endif
 #include <unistd.h>
 
-#ifdef SDL
 #include "SDL.h"
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -25,7 +19,6 @@
 #define BOOL IGNOREBOOL
 #undef FALSE
 #undef TRUE
-#endif
 #endif
  
 #include "warp_text.c"
@@ -36,12 +29,7 @@
 #include "palinit.h"
 #include "rolnfade.h"
 
-#ifdef LIBXPCE
-#include <X11/keysym.h>
-#include "libxpce/libxpce.h"
-#endif
 
-#ifdef SDL
  
 static SDL_Surface *surface;
 static SDL_Color sdlPalette[256];
@@ -51,7 +39,6 @@ static int scaling = 1;
 static int winwidth = 0;
 static int winheight;
 
-#endif
  
 #define NUM_IMAGE_FUNCTIONS 40
 #define NOAHS_FACE   0
@@ -74,7 +61,6 @@ int LOCK = FALSE; /* flag indicates don't change to next image */
 UCHAR MainPalArray [256 * 3];
 UCHAR TargetPalArray [256 * 3];
 
-#ifdef SDL
 
 void setSDLPalette(unsigned char *palette) {
   int i;
@@ -140,7 +126,6 @@ void updateSDLSurface(void) {
 
 #undef main
 
-#endif
 
 int main (int argc, char *argv[])
 {
@@ -163,31 +148,15 @@ int main (int argc, char *argv[])
   
   graphicsinit();
 
-#ifdef SVGALIB
-  physicalscreen = gl_allocatecontext();
-  gl_getcontext(physicalscreen);
-#endif
 
   initPalArray(MainPalArray, RGBW_LIGHTNING_PAL);
   initPalArray(TargetPalArray, RGBW_LIGHTNING_PAL);
-#if defined(SVGALIB)
-      gl_setpalettecolors(0, 256, MainPalArray);
-#elif defined(LIBXPCE)
-      xpce_SetPalette(MainPalArray);
-#elif defined(SDL)
       setSDLPalette(MainPalArray);
-#endif
   
   if (logo_time != 0) {
     /* show the logo for a while */
     writeBitmapImageToArray(buf_graf, NOAHS_FACE, XMax, YMax);
-#if defined(SVGALIB)
-    gl_putbox(1,1,XMax,YMax,buf_graf);
-#elif defined(LIBXPCE)
-    xpce_DrawImage();
-#elif defined(SDL)
 	updateSDLSurface();
-#endif
     ltime=time(NULL);
     mtime=ltime + logo_time;
     for(;;) {
@@ -229,20 +198,10 @@ int main (int argc, char *argv[])
 		   imageFuncList[imageFuncListIndex] : 
 		   userOptionImageFuncNum, 
 		   buf_graf, XMax/2, YMax/2, XMax, YMax, 
-#ifdef LIBXPCE
-		   xpce_GetNumColors()-1
-#else
 		   255
-#endif
 		   );
 
-#if defined(SVGALIB)
-    gl_putbox(1,1,XMax,YMax,buf_graf);
-#elif defined(LIBXPCE)
-    xpce_DrawImage();
-#elif defined(SDL)
 	updateSDLSurface();
-#endif
 
     /* create new palette */
     paletteTypeNum = RANDOM(NUM_PALETTE_TYPES +1);
@@ -256,13 +215,7 @@ int main (int argc, char *argv[])
       if(SKIP)
 	break;
       usleep(ROTATION_DELAY);
-#if defined(SVGALIB)
-      gl_setpalettecolors(0, 256, MainPalArray);
-#elif defined(LIBXPCE)
-      xpce_SetPalette(MainPalArray);
-#elif defined(SDL)
       setSDLPalette(MainPalArray);
-#endif
     }
     
     FadeCompleteFlag=!FadeCompleteFlag;
@@ -318,13 +271,7 @@ void newpal()
   paletteTypeNum = RANDOM(NUM_PALETTE_TYPES +1);
   initPalArray(MainPalArray, paletteTypeNum);
 
-#if defined(SVGALIB)
-  gl_setpalettecolors(0, 256, MainPalArray);  /* FIXME really target?? */
-#elif defined(LIBXPCE)
-  xpce_SetPalette(MainPalArray);
-#elif defined(SDL)
   setSDLPalette(MainPalArray);
-#endif
 }
 
 #if 0
@@ -371,11 +318,6 @@ int checkinput()
 }
 #endif
 
-#ifdef LIBXPCE
-void processinput() {
-  xpce_HandleEvents();
-}  
-#endif
 
 void handleinput(int key)
 {
@@ -391,12 +333,7 @@ void handleinput(int key)
       SKIP = TRUE;
       break;
     case 3:
-#if defined(LIBXPCE)
-      xpce_QuitNotify();
-      xpce_CloseGraph();
-#elif defined(SDL)
 	  SDL_Quit();
-#endif
       exit(0);
       break;
     case 4:
@@ -419,7 +356,6 @@ void handleinput(int key)
     }
 }
 
-#if defined(LIBXPCE) || defined(SDL)
 void xpceC_HandleInputChar(int c) {
   int r;
   
@@ -440,7 +376,6 @@ void xpceC_HandleInputChar(int c) {
   }
   handleinput(r);
 }
-#endif
 
 #if 0
 void xpceC_HandleInputKeySym(int k) {
@@ -506,17 +441,6 @@ void processinput() {
   if (keyHit != 0) xpceC_HandleInputChar(keyHit);
 }
 
-#ifdef LIBXPCE
-void xpceC_QuitRequest() {
-  handleinput(3);
-}
-
-void xpceC_HandleResize(unsigned int xsize, unsigned int ysize) {
-  XMax = xsize - 1;
-  YMax = ysize - 1;
-  SKIP = TRUE;
-}
-#endif
 
 
 void commandline(int argc, char *argv[])
@@ -533,9 +457,6 @@ void commandline(int argc, char *argv[])
       else
       if (!strcmp("-h",argv[argNum])) {
         printStrArray(Help_string);
-#ifdef LIBXPCE	
-	xpce_CLHelp();
-#endif
         printf("\n%s\n", VERSION);
         exit (0);
       }
@@ -565,9 +486,6 @@ void commandline(int argc, char *argv[])
         }
       }
       else
-#ifdef LIBXPCE
-	if (!xpce_ProcessOption(argc, argv, &argNum))
-#endif
 	  {
 	    fprintf(stderr, "Unknown option \"%s\"\n", argv[argNum]);
 	    exit(-1);
@@ -608,7 +526,6 @@ void graphicsinit()
       break;
     }
   */
-#ifdef SDL
   Uint32 videoflags = SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_HWPALETTE |
                       SDL_RESIZABLE | (fullscreen?SDL_FULLSCREEN:0);
 
@@ -746,24 +663,8 @@ void graphicsinit()
 
   inited = 1;  
   
-#endif
 
-#ifdef LIBXPCE
-   fprintf(stderr, "DISPLAY=\"%s\"\n", getenv("DISPLAY"));
-   xpce_InitGraph();
 
-   XMax = xpce_GetWidth()-1;
-   YMax = xpce_GetHeight()-1;
-#endif
-
-#ifdef SVGALIB
-   /* Is this if here ok? */
-   if (XMax == 0 || YMax == 0) {
-     XMax = 319;
-     YMax = 199;
-   }
-   vga_init();
-#endif
 
 #if 0
   switch (RES)
@@ -784,15 +685,6 @@ void graphicsinit()
 #endif
   VIRTUAL=0;
 
-#ifdef SVGALIB
-  vga_setmode(VGAMODE);
-  
-  if (keyboard_init()) {
-    printf("Could not initialize keyboard.\n");
-    exit(1);
-  }
-  gl_setcontextvga(VGAMODE);  /* Physical screen context. */
-#endif
 
 }
 
