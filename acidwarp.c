@@ -174,8 +174,6 @@ static void mainLoop(void) {
   static time_t ltime, mtime;
   static enum {
     STATE_INITIAL,
-    STATE_LOGO,
-    STATE_LOGOFADE,
     STATE_NEXT,
     STATE_FADEIN,
     STATE_ROTATE,
@@ -196,34 +194,15 @@ static void mainLoop(void) {
   switch (state) {
   case STATE_INITIAL:
     makeShuffledList(imageFuncList, NUM_IMAGE_FUNCTIONS);
-    if (logo_time == 0) goto skip_logo;
+    if (logo_time != 0) {
     /* show the logo for a while */
     writeBitmapImageToArray(buf_graf, NOAHS_FACE, XMax, YMax);
 	updateSDLSurface();
     ltime=time(NULL);
     mtime=ltime + logo_time;
-
-    /* Fall through */
-    state = STATE_LOGO;
-  case STATE_LOGO:
-      if(GO)
-	rollMainPalArrayAndLoadDACRegs(MainPalArray);
-      if(ltime<=mtime) {
-      ltime=time(NULL);
-      break;
-      }
-
-    state = STATE_LOGOFADE;
-    /* Fall through */
-  case STATE_LOGOFADE:
-    if(!FadeCompleteFlag) {
-      if(GO)
-        rolNFadeBlkMainPalArrayNLoadDAC(MainPalArray);
-      break;
+    goto logo_entry;
     }
-    FadeCompleteFlag=FALSE;
 
-skip_logo:
     state = STATE_NEXT;
     /* Fall through */
   case STATE_NEXT:
@@ -266,6 +245,7 @@ skip_logo:
     ltime = time(NULL);
     mtime = ltime + image_time;
     
+logo_entry:
     state = STATE_ROTATE;
     /* Fall through */
   case STATE_ROTATE:
