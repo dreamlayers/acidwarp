@@ -47,7 +47,7 @@ static int winheight;
 /* there are WAY too many global things here... */
 static int ROTATION_DELAY = 30000;
 /* GraphicsContext *physicalscreen; */
-static int logo_time = 30, image_time = 20;
+static int show_logo = 1, image_time = 20;
 static int XMax = 319, YMax = 199;
 static UCHAR *buf_graf = NULL;
 static int GO = TRUE;
@@ -152,10 +152,8 @@ int main (int argc, char *argv[])
   
   graphicsinit();
 
-
-  initPalArray(MainPalArray, RGBW_LIGHTNING_PAL);
-  initPalArray(TargetPalArray, RGBW_LIGHTNING_PAL);
-      setSDLPalette(MainPalArray);
+  memset(MainPalArray, 0, sizeof(MainPalArray));
+  setSDLPalette(MainPalArray);
 
 #ifdef EMSCRIPTEN
   emscripten_set_main_loop(mainLoop, 1000000/ROTATION_DELAY, 1);
@@ -184,7 +182,7 @@ static void mainLoop(void) {
   processinput();
   if (SKIP) {
     if (state == STATE_INITIAL) {
-      logo_time = 0;
+      show_logo = 0;
       SKIP = FALSE;
     } else {
       state = STATE_NEXT;
@@ -194,12 +192,12 @@ static void mainLoop(void) {
   switch (state) {
   case STATE_INITIAL:
     makeShuffledList(imageFuncList, NUM_IMAGE_FUNCTIONS);
-    if (logo_time != 0) {
+    if (show_logo != 0) {
     /* show the logo for a while */
     writeBitmapImageToArray(buf_graf, NOAHS_FACE, XMax, YMax);
-	updateSDLSurface();
-    ltime=time(NULL);
-    mtime=ltime + logo_time;
+    updateSDLSurface();
+    initPalArray(TargetPalArray, RGBW_LIGHTNING_PAL);
+    FadeCompleteFlag = FALSE; /* Fade-in needed next */
     goto logo_entry;
     }
 
@@ -229,6 +227,7 @@ static void mainLoop(void) {
     }
     SKIP = FALSE;
     
+logo_entry:
     state = STATE_FADEIN;
     /* Fall through */
   case STATE_FADEIN:
@@ -245,7 +244,6 @@ static void mainLoop(void) {
     ltime = time(NULL);
     mtime = ltime + image_time;
     
-logo_entry:
     state = STATE_ROTATE;
     /* Fall through */
   case STATE_ROTATE:
@@ -430,7 +428,7 @@ static void commandline(int argc, char *argv[])
       }
       else
       if(!strcmp("-n",argv[argNum])) {
-        logo_time = 0;
+        show_logo = 0;
       }
       else
       if(!strcmp("-d",argv[argNum])) {
