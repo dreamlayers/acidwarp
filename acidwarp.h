@@ -69,16 +69,16 @@ void beepOff(void);
 
 /* PALINIT.C	*****************************************************************/
 /* Palette types  */
-#define RGBW_PAL          0 
-#define W_PAL						1
-#define W_HALF_PAL				2
-#define PASTEL_PAL				3
-#define RGBW_LIGHTNING_PAL		4
-#define W_LIGHTNING_PAL			5
-#define W_HALF_LIGHTNING_PAL	6
-#define PASTEL_LIGHTNING_PAL	7
+#define RGBW_PAL          	0
+#define W_PAL                   1
+#define W_HALF_PAL              2
+#define PASTEL_PAL              3
+#define RGBW_LIGHTNING_PAL      4
+#define W_LIGHTNING_PAL         5
+#define W_HALF_LIGHTNING_PAL    6
+#define PASTEL_LIGHTNING_PAL    7
 
-#define NUM_PALETTE_TYPES	8
+#define NUM_PALETTE_TYPES       8
 
 void initPalArray (UCHAR *pal, int pal_type);
 void add_sparkles_to_palette (UCHAR *palArray, int sparkle_amount);

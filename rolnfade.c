@@ -15,11 +15,11 @@ UCHAR TargetPalArray  [256 * 3];
 /**********************************************************************************/
 
 /* These functions are called by the timer ISR; the first one is also called by some of the others.	*/
-
+  
 void rollMainPalArrayAndLoadDACRegs (void)
 {
-	maybeInvertSubPalRollDirection();
-	roll_rgb_palArray (MainPalArray);
+        maybeInvertSubPalRollDirection();
+        roll_rgb_palArray(MainPalArray);
   loadAllDACRegs    (MainPalArray);
 }
 
@@ -27,7 +27,7 @@ void rolNFadeWhtMainPalArrayNLoadDAC (void)
 {							/* Fade to white, and keep the palette rolling while the fade is in progress.	*/
 	if (!FadeCompleteFlag)
 	{
-		if (fadePalArrayToWhite (MainPalArray) == DONE)
+		if (fadePalArrayToWhite(MainPalArray) == DONE)
 			FadeCompleteFlag = 1;
     rollMainPalArrayAndLoadDACRegs();
 	}
@@ -67,7 +67,7 @@ void rolNFadeMainPalAryToTargNLodDAC (void)
 void rolNFadMainPalAry2RndTargNLdDAC (void)
 {
 	if (fadePalArrayToTarget (MainPalArray, TargetPalArray) == DONE)
-    initPalArray (TargetPalArray, RANDOM (NUM_PALETTE_TYPES));
+         initPalArray (TargetPalArray, RANDOM (NUM_PALETTE_TYPES));
 
 	maybeInvertSubPalRollDirection();
 	roll_rgb_palArray (  MainPalArray);
@@ -97,7 +97,7 @@ int fadePalArrayToWhite (UCHAR *palArray)
 }
 
 int fadePalArrayToBlack (UCHAR *palArray)
-{													/* Returns DONE if the entire palette is black, else NOT_DONE	 */
+{	/* Returns DONE if the entire palette is black, else NOT_DONE	 */
 	int palByteNum, num_black = 0;
 
 	for (palByteNum = 3; palByteNum < 768; ++palByteNum)
@@ -144,7 +144,7 @@ void roll_rgb_palArray (UCHAR *palArray)
 	tempBlu = (!BluRollDirection) ? palArray[5] : palArray[767];
 
 	for (palRegNum = 1; palRegNum < 255; ++palRegNum)
-	{
+{
 		palByteNum = palRegNum * 3;
 
 		if (!RedRollDirection) palArray[      palByteNum] = palArray[      palByteNum + 3];
@@ -157,7 +157,7 @@ void roll_rgb_palArray (UCHAR *palArray)
 
 		if (!BluRollDirection) palArray[      palByteNum] = palArray[      palByteNum + 3];
 								else palArray[772 - palByteNum] = palArray[769 - palByteNum    ];
-	}
+}
 
 	if (!RedRollDirection) palArray[765] = tempRed; else palArray[3] = tempRed;
 	if (!GrnRollDirection) palArray[766] = tempGrn; else palArray[4] = tempGrn;

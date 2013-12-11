@@ -24,27 +24,27 @@ void initPalArray (UCHAR *palArray, int pal_type)
 		break;
 
 		case RGBW_LIGHTNING_PAL:
-      init_rgbw_palArray (palArray);
-      add_sparkles_to_palette (palArray, 9);
-    break;
+		      init_rgbw_palArray (palArray);
+		      add_sparkles_to_palette (palArray, 9);
+                break;
 
 		case W_LIGHTNING_PAL:
-      init_w_palArray (palArray);
-      add_sparkles_to_palette (palArray, 9);
-    break;
+		      init_w_palArray (palArray);
+		      add_sparkles_to_palette (palArray, 9);
+	        break;
 
 		case W_HALF_LIGHTNING_PAL:
-      init_w_half_palArray (palArray);
-      add_sparkles_to_palette (palArray, 9);
-    break;
+                      init_w_half_palArray (palArray);
+                      add_sparkles_to_palette (palArray, 9);
+                break;
 
 		case PASTEL_LIGHTNING_PAL:
-      init_pastel_palArray (palArray);
-      add_sparkles_to_palette (palArray, 9);
-    break;
+                      init_pastel_palArray (palArray);
+                      add_sparkles_to_palette (palArray, 9);
+                break;
 
 		default:
-			init_w_palArray (palArray);
+			init_w_palArray(palArray);
 		break;
 	}
 }
@@ -61,7 +61,7 @@ void add_sparkles_to_palette (UCHAR *palArray, int sparkle_amount)
     palArray[palRegNum * 3    ] = (UCHAR)min(63, palArray[palRegNum * 3    ] + sparkle_amount);
     palArray[palRegNum * 3 + 1] = (UCHAR)min(63, palArray[palRegNum * 3 + 1] + sparkle_amount);
     palArray[palRegNum * 3 + 2] = (UCHAR)min(63, palArray[palRegNum * 3 + 2] + sparkle_amount);
-	}
+  }
 }
 
 void init_rgbw_palArray (UCHAR *palArray)
@@ -107,21 +107,21 @@ void init_rgbw_palArray (UCHAR *palArray)
 
 void init_w_palArray (UCHAR *palArray)
 {
-	int palRegNum;
+        int palRegNum;
 
-	for (palRegNum = 0; palRegNum < 128; ++palRegNum)
-	{
-		palArray[palRegNum * 3    ] = (UCHAR)palRegNum/2;
-		palArray[palRegNum * 3 + 1] = (UCHAR)palRegNum/2;
-		palArray[palRegNum * 3 + 2] = (UCHAR)palRegNum/2;
-	}
+        for (palRegNum = 0; palRegNum < 128; ++palRegNum)
+        {
+                palArray[palRegNum * 3    ] = (UCHAR)palRegNum/2;
+                palArray[palRegNum * 3 + 1] = (UCHAR)palRegNum/2;
+                palArray[palRegNum * 3 + 2] = (UCHAR)palRegNum/2;
+        }
 
-	for (palRegNum = 128; palRegNum < 256; ++palRegNum)
-	{
-		palArray[palRegNum * 3    ] = (UCHAR)(255 - palRegNum)/2;
-		palArray[palRegNum * 3 + 1] = (UCHAR)(255 - palRegNum)/2;
-		palArray[palRegNum * 3 + 2] = (UCHAR)(255 - palRegNum)/2;
-	}
+        for (palRegNum = 128; palRegNum < 256; ++palRegNum)
+        {
+                palArray[palRegNum * 3    ] = (UCHAR)(255 - palRegNum)/2;
+                palArray[palRegNum * 3 + 1] = (UCHAR)(255 - palRegNum)/2;
+                palArray[palRegNum * 3 + 2] = (UCHAR)(255 - palRegNum)/2;
+        }
 }
 
 void init_w_half_palArray (UCHAR *palArray)

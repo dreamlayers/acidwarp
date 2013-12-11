@@ -71,7 +71,7 @@ char *Help_string[] =
 	"      7: Palette #3 with sparkles\n",
 	"      8: A special dynamic \"morph\" palette. Constantly morphs from one\n",
 	"         palette number to another. Very Weird effects.\n",
-	"\n",
+        "\n",      
 	"'w' - Option to print \"The Warper\" text file\n",
 	"      It is possible to take the pictures from Acid Warp and project them\n",
 	"      onto a wall or movie screen using a very simple and inexpensive setup\n",
