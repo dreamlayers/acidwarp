@@ -18,7 +18,7 @@
 #define BLUE 2
 #define NUM_PALETTE_TYPES       8
 
-void setSDLPalette(unsigned char *palette);
+void disp_setPalette(unsigned char *palette);
 
 
 

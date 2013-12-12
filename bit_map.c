@@ -119,17 +119,14 @@ static UCHAR TITLE_DATA [(X_TITLE * Y_TITLE / 4)] =
  */
 
 static void bit_map_uncompress (UCHAR *buf_graf, UCHAR *bit_data,
-                                int x_map, int y_map, int xmax, int ymax)
+                                int x_map, int y_map,
+                                int xmax, int ymax, int xsize)
 {
 	int x, y, tx, ty;
 
 	int beg_x, beg_y, end_x, end_y;
 
 	int bits2;
-
-	int xsize;
-	
-	xsize = xmax + 1;
 
 	beg_x = (xmax - 2 * x_map) / 2;
 	beg_y = (ymax - 2 * y_map) / 2;
@@ -233,12 +230,14 @@ static void bit_map_uncompress (UCHAR *buf_graf, UCHAR *bit_data,
 	}
 }
 
-void writeBitmapImageToArray (UCHAR *buf_graf, int image_number, int xmax, int ymax)
+void writeBitmapImageToArray (UCHAR *buf_graf, int image_number,
+                              int xmax, int ymax, int stride)
 {
 	switch (image_number)
 	{
 		case NOAHS_FACE:	/* TITLE IMAGE */
-			bit_map_uncompress (buf_graf, TITLE_DATA, X_TITLE, Y_TITLE, xmax, ymax);
+			bit_map_uncompress (buf_graf, TITLE_DATA,
+                                X_TITLE, Y_TITLE, xmax, ymax, stride);
 		break;
 
 		default:

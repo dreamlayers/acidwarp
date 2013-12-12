@@ -3,5 +3,5 @@
 
 #define NOAHS_FACE	0
 
-void writeBitmapImageToArray(UCHAR *buf_graf, int image_number, int xmax, int ymax);
-
+void writeBitmapImageToArray(UCHAR *buf_graf, int image_number,
+                             int xmax, int ymax, int stride);

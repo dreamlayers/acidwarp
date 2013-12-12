@@ -45,7 +45,7 @@ void rollMainPalArrayAndLoadDACRegs(UCHAR *MainPalArray)
 {
         maybeInvertSubPalRollDirection();
         roll_rgb_palArray(MainPalArray);
-		setSDLPalette(MainPalArray);
+		disp_setPalette(MainPalArray);
 }
 
 
@@ -82,7 +82,7 @@ void rolNFadeMainPalAryToTargNLodDAC(UCHAR *MainPalArray, UCHAR *TargetPalArray)
 		maybeInvertSubPalRollDirection();
 		roll_rgb_palArray (  MainPalArray);
 		roll_rgb_palArray (TargetPalArray);
-		setSDLPalette(MainPalArray);
+		disp_setPalette(MainPalArray);
 	}
 	else
     rollMainPalArrayAndLoadDACRegs(MainPalArray);
@@ -102,8 +102,8 @@ void rolNFadMainPalAry2RndTargNLdDAC(UCHAR *MainPalArray, UCHAR *TargetPalArray)
 
 	maybeInvertSubPalRollDirection();
 	roll_rgb_palArray (  MainPalArray);
-	roll_rgb_palArray (TargetPalArray);
-		setSDLPalette(MainPalArray);
+    roll_rgb_palArray (TargetPalArray);
+    disp_setPalette(MainPalArray);
 }
 #endif
 
