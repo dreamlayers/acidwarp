@@ -119,10 +119,22 @@ void disp_finishUpdate(void)
   SDL_Flip(screen);
 }
 
+static void disp_processKey(SDLKey key)
+{
+  switch (key) {
+    case SDLK_UP: handleinput(CMD_PAL_FASTER); break;
+    case SDLK_DOWN: handleinput(CMD_PAL_SLOWER); break;
+    case SDLK_p: handleinput(CMD_PAUSE); break;
+    case SDLK_n: handleinput(CMD_SKIP); break;
+    case SDLK_q: handleinput(CMD_QUIT); break;
+    case SDLK_k: handleinput(CMD_NEWPAL); break;
+    case SDLK_l: handleinput(CMD_LOCK); break;
+    default: break;
+  }
+}
+
 void disp_processInput(void) {
   SDL_Event event;
- 
-  char keyHit = 0;
   
   while ( SDL_PollEvent(&event) > 0 ) {
     switch (event.type) {
@@ -143,21 +155,7 @@ void disp_processInput(void) {
         disp_init();
 		break;
       case SDL_KEYDOWN:
-        ///* Ignore key releases */
-        //if ( event.key.state == SDL_RELEASED ) {
-        //  break;
-        //}
-        /* Ignore ALT-TAB for windows */
-        if ( (event.key.keysym.sym == SDLK_LALT) ||
-             (event.key.keysym.sym == SDLK_TAB) ) {
-          break;
-        } else if (event.key.keysym.sym == SDLK_UP) {
-          handleinput(6);
-		} else if (event.key.keysym.sym == SDLK_DOWN) {
-		  handleinput(7);
-		} else if (event.key.keysym.unicode <= 255) {
-          keyHit = event.key.keysym.unicode;
-		}
+        disp_processKey(event.key.keysym.sym);
         break;
       case SDL_VIDEORESIZE:
         /* Why are there events when there is no resize? */
@@ -165,20 +163,19 @@ void disp_processInput(void) {
             YMax != (event.resize.h / scaling - 1)) {
 		XMax = event.resize.w / scaling - 1;
 		YMax = event.resize.h / scaling - 1;
-		SKIP = TRUE;
+		handleinput(CMD_SKIP);
 		disp_init();
         }
 		break;
       case SDL_QUIT:
 		  //abort();
-		handleinput(3);
+		handleinput(CMD_QUIT);
 		break;
+
       default:
         break;
     }
   }
-  
-  if (keyHit != 0) handleInputChar(keyHit);
 }
 
 void disp_init()
@@ -201,8 +198,6 @@ void disp_init()
     nativedepth = vi->vfmt->BitsPerPixel;
 
     SDL_WM_SetCaption("Acidwarp","acidwarp");
-
-    SDL_EnableUNICODE(1);
 
     /* XMax = 319;
     YMax = 199;	 */
@@ -242,7 +237,7 @@ void disp_init()
     if (winwidth != 0) {
 	  XMax = winwidth;
 	  YMax = winheight;
-	  SKIP = TRUE;
+	  handleinput(CMD_SKIP);
       winwidth = 0;	  
     }
   } else {
@@ -281,7 +276,7 @@ void disp_init()
 	    winheight = YMax;
 		XMax = newwidth - 1;
 		YMax = newheight - 1;
- 	    SKIP = TRUE;
+	    handleinput(CMD_SKIP);
       }
 	}
   }

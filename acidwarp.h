@@ -18,4 +18,14 @@
 #define BLUE 2
 #define NUM_PALETTE_TYPES       8
 
-void handleinput(int key);
+enum acidwarp_command {
+  CMD_PAUSE = 1,
+  CMD_SKIP,
+  CMD_QUIT,
+  CMD_NEWPAL,
+  CMD_LOCK,
+  CMD_PAL_FASTER,
+  CMD_PAL_SLOWER
+};
+
+void handleinput(enum acidwarp_command cmd);

@@ -41,7 +41,7 @@ int XMax = 319, YMax = 199;
 UCHAR *buf_graf = NULL;
 unsigned int buf_graf_stride = 0;
 static int GO = TRUE;
-int SKIP = FALSE;
+static int SKIP = FALSE;
 static int NP = FALSE; /* flag indicates new palette */
 static int LOCK = FALSE; /* flag indicates don't change to next image */
 static UCHAR MainPalArray [256 * 3];
@@ -219,62 +219,41 @@ static void newpal()
   disp_setPalette(MainPalArray);
 }
 
-void handleinput(int key)
+void handleinput(enum acidwarp_command cmd)
 {
-  switch(key)
+  switch(cmd)
     {
-    case 1:
+    case CMD_PAUSE:
       if(GO)
 	GO = FALSE;
       else
 	GO = TRUE;
       break;
-    case 2:
+    case CMD_SKIP:
       SKIP = TRUE;
       break;
-    case 3:
+    case CMD_QUIT:
 	  SDL_Quit();
       exit(0);
       break;
-    case 4:
+    case CMD_NEWPAL:
       NP = TRUE;
       break;
-    case 5:
+    case CMD_LOCK:
       if(LOCK)
 	LOCK = FALSE;
       else
 	LOCK = TRUE;
       break;
-    case 6:
+    case CMD_PAL_FASTER:
       ROTATION_DELAY = ROTATION_DELAY - 5000;
       if (ROTATION_DELAY < 0)
 	ROTATION_DELAY = 0;
       break;
-    case 7:
+    case CMD_PAL_SLOWER:
       ROTATION_DELAY = ROTATION_DELAY + 5000;
       break;
     }
-}
-
-void handleInputChar(int c) {
-  int r;
-  
-  switch (c) {
-  case 'p':
-  case 'P':        r = 1;     break;
-  case 'n':
-  case 'N':        r = 2;     break;
-  case 'q':
-  case 'Q':        r = 3;     break;
-      
-  case 'k':
-  case 'K':        r = 4;     break;
-  case 'l':
-  case 'L':        r = 5;     break;
-  default:
-    return;
-  }
-  handleinput(r);
 }
 
 static void commandline(int argc, char *argv[])
