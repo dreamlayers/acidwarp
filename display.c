@@ -176,12 +176,11 @@ void disp_processInput(void) {
             YMax != (event.resize.h / scaling - 1)) {
 		XMax = event.resize.w / scaling - 1;
 		YMax = event.resize.h / scaling - 1;
-		handleinput(CMD_SKIP);
 		disp_init();
+		handleresize(XMax + 1, YMax + 1);
         }
 		break;
       case SDL_QUIT:
-		  //abort();
 		handleinput(CMD_QUIT);
 		break;
 
@@ -198,6 +197,7 @@ void disp_init()
   static int inited = 0;
   static int nativedepth = 8;
   int usedepth;
+  int resize = 0;
   
   if (!inited) {
 #ifndef EMSCRIPTEN
@@ -263,7 +263,7 @@ void disp_init()
     if (winwidth != 0) {
 	  XMax = winwidth;
 	  YMax = winheight;
-	  handleinput(CMD_SKIP);
+	  resize = 1;
       winwidth = 0;	  
     }
   } else {
@@ -302,7 +302,7 @@ void disp_init()
 	    winheight = YMax;
 		XMax = newwidth - 1;
 		YMax = newheight - 1;
-	    handleinput(CMD_SKIP);
+		resize = 1;
       }
 	}
   }
@@ -349,5 +349,9 @@ void disp_init()
     if (!inited) memset(buf_graf, 0, (XMax + 1) * (YMax + 1));
   }
 
-  inited = 1;  
+  if (inited && resize) {
+    handleresize(XMax + 1, YMax + 1);
+  }
+
+  inited = 1;
 }

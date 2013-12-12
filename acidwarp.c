@@ -42,6 +42,8 @@ static int NP = FALSE; /* flag indicates new palette */
 static int LOCK = FALSE; /* flag indicates don't change to next image */
 static UCHAR MainPalArray [256 * 3];
 static UCHAR TargetPalArray [256 * 3];
+static int imageFuncList[NUM_IMAGE_FUNCTIONS];
+static int imageFuncListIndex=0;
 
 /* Prototypes for forward referenced functions */
 static void newpal(void);
@@ -53,6 +55,7 @@ static void generate_image(int imageFuncNum, UCHAR *buf_graf,
                            int colormax, int stride);
 static void commandline(int argc, char *argv[]);
 static void mainLoop(void);
+static void redraw(void);
 
 int main (int argc, char *argv[])
 {
@@ -82,9 +85,8 @@ int main (int argc, char *argv[])
 }
 
 static void mainLoop(void) {
-  static int imageFuncList[NUM_IMAGE_FUNCTIONS];
   static int paletteTypeNum = 0;
-  static int imageFuncListIndex=0, fade_dir = TRUE;
+  static int fade_dir = TRUE;
   static time_t ltime, mtime;
   static enum {
     STATE_INITIAL,
@@ -110,10 +112,7 @@ static void mainLoop(void) {
     makeShuffledList(imageFuncList, NUM_IMAGE_FUNCTIONS);
     if (show_logo != 0) {
     /* show the logo for a while */
-    disp_beginUpdate();
-    writeBitmapImageToArray(buf_graf, NOAHS_FACE, XMax, YMax,
-                            buf_graf_stride);
-    disp_finishUpdate();
+    redraw();
     initPalArray(TargetPalArray, RGBW_LIGHTNING_PAL);
     FadeCompleteFlag = FALSE; /* Fade-in needed next */
     goto logo_entry;
@@ -122,6 +121,7 @@ static void mainLoop(void) {
     state = STATE_NEXT;
     /* Fall through */
   case STATE_NEXT:
+    show_logo = 0;
     /* move to the next image */
     if (++imageFuncListIndex >= NUM_IMAGE_FUNCTIONS)
       {
@@ -130,11 +130,7 @@ static void mainLoop(void) {
       }
     
     /* install a new image */
-    disp_beginUpdate();
-    generate_image(imageFuncList[imageFuncListIndex],
-		           buf_graf, XMax/2, YMax/2, XMax, YMax,
-		           255, buf_graf_stride);
-    disp_finishUpdate();
+    redraw();
 
     if (!SKIP) {
     /* create new palette */
@@ -250,6 +246,27 @@ void handleinput(enum acidwarp_command cmd)
       ROTATION_DELAY = ROTATION_DELAY + 5000;
       break;
     }
+}
+
+void redraw(void) {
+  disp_beginUpdate();
+  if (show_logo) {
+    writeBitmapImageToArray(buf_graf, NOAHS_FACE, XMax, YMax,
+                            buf_graf_stride);
+  } else {
+    generate_image(imageFuncList[imageFuncListIndex],
+	               buf_graf, XMax/2, YMax/2, XMax, YMax,
+		           255, buf_graf_stride);
+  }
+  disp_finishUpdate();
+  disp_setPalette(MainPalArray);
+}
+
+void handleresize(int width, int height)
+{
+    XMax = width - 1;
+    YMax = height - 1;
+    redraw();
 }
 
 static void commandline(int argc, char *argv[])

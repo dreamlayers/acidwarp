@@ -29,3 +29,4 @@ enum acidwarp_command {
 };
 
 void handleinput(enum acidwarp_command cmd);
+void handleresize(int width, int height);
