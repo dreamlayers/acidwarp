@@ -15,14 +15,6 @@
 #endif
 
 #include "SDL.h"
-#ifdef WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#undef BOOL
-#define BOOL IGNOREBOOL
-#undef FALSE
-#undef TRUE
-#endif
  
 #include "warp_text.c"
 #include "handy.h"
@@ -491,42 +483,8 @@ void graphicsinit()
                       SDL_RESIZABLE | (fullscreen?SDL_FULLSCREEN:0);
 
   static int inited = 0;
-#ifdef WIN32  
-  static int palettehack = 0;
-  OSVERSIONINFO winver;
-  const char *svd = "SDL_VIDEODRIVER";
-
-  if (inited && palettehack ) {
-    SDL_Quit();
-    inited = 0;
-  }
-#endif
   
   if (!inited) {
-#ifdef WIN32
-    if (!palettehack) {
-      winver.dwOSVersionInfoSize = sizeof(winver);
-      if (GetVersionEx(&winver) && 
-          winver.dwPlatformId == 2 && winver.dwMajorVersion == 5 &&
-          (winver.dwMinorVersion == 0 || winver.dwMinorVersion == 1)) {
-        // Windows XP or 2000 can give us all 256 colours
-        palettehack = 0;
-      } else if (GetEnvironmentVariable(svd, NULL, 0) > 0) {
-        // SDL_VIDEODRIVER already set
-        palettehack = 0;
-      } else {
-        palettehack = 1;
-      }
-    }
-
-    if (palettehack) {
-      if (fullscreen) {
-        SetEnvironmentVariable(svd, "directx");
-      } else {
-        SetEnvironmentVariable(svd, "windib");
-      }
-    }
-#endif
 
     /* Initialize SDL */
     if ( SDL_Init(SDL_INIT_VIDEO) < 0 ) {
@@ -607,10 +565,6 @@ void graphicsinit()
     fprintf(stderr, "setting video mode");
     exit(-1);
   }
-#ifdef WIN32
-  if (palettehack)
-    SetEnvironmentVariable(svd, NULL);
-#endif  
 
   // SDL_SetColors(surface, sdlPalette, 0, 256);
   if (buf_graf == NULL) {

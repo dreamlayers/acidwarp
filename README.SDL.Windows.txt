@@ -37,13 +37,10 @@ Note on full screen mode
 In Windows 7, it is normally impossible to access all 256 colours.  Merge
 Acidwarp-256color.reg into the registry to fix this.
 
-In Windows 7 and Vista, the program will use the windib driver in windowed
-mode and directx in full screen mode.  This should avoid disabling Aero.
-The switching is disabled if a particular video driver is specified (for
-example, via "set SDL_VIDEODRIVER=directx" at the command line).
-
 In Windows 2000 and XP, it is possible to use all 256 colours using the
 windib video driver.
 
 In earlier versions of Windows, all 256 colours may not be available via
 the windib driver, and the directx driver may provide better results.
+You can select it by setting the SDL_VIDEODRIVER environment variable to
+"directx".
