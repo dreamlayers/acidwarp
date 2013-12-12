@@ -33,7 +33,7 @@
 static int ROTATION_DELAY = 30000;
 /* GraphicsContext *physicalscreen; */
 static int show_logo = 1, image_time = 20;
-int XMax = 319, YMax = 199;
+static int XMax = 319, YMax = 199;
 UCHAR *buf_graf = NULL;
 unsigned int buf_graf_stride = 0;
 static int GO = TRUE;
@@ -69,7 +69,7 @@ int main (int argc, char *argv[])
 	  "\n\n*** Press Control-C to exit the program at any time. ***\n");
   printf ("\n\n%s\n", VERSION);
   
-  disp_init();
+  disp_init(XMax + 1, YMax + 1);
 
   memset(MainPalArray, 0, sizeof(MainPalArray));
   disp_setPalette(MainPalArray);

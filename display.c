@@ -27,6 +27,7 @@ static int scaling = 1;
 // Save window size when in full screen
 static int winwidth = 0;
 static int winheight;
+static int width, height;
 
 static void disp_SDLFatal(const char *msg) {
   fprintf(stderr, "SDL error while %s: %s", msg, SDL_GetError());
@@ -98,18 +99,18 @@ void disp_finishUpdate(void)
     outp = surface->pixels;
 
   if (scaling == 1) {	  
-    for (row = 0; row <= YMax; row++) {	 
-      memcpy(outp, inp, XMax+1);
+    for (row = 0; row < height; row++) {
+	  memcpy(outp, inp, width);
 	  outp += surface->pitch;
-	  inp += XMax + 1;
+	  inp += width;
     }
   } else if (scaling == 2) {
     unsigned char *outp2 = outp + surface->pitch;
-	int skip = (surface->pitch - XMax - 1) * 2;
+	int skip = (surface->pitch - width) << 1;
 	int col;
 	unsigned char c;
-    for (row = 0; row <= YMax; row++) {	 
-	  for (col = 0; col <= XMax; col++) { 
+    for (row = 0; row < height; row++) {
+	  for (col = 0; col < width; col++) {
 	    c = *(inp++);
 		*(outp++) = c;
 		*(outp++) = c;
@@ -164,7 +165,7 @@ void disp_processInput(void) {
       /* SDL full screen switching has no useful effect with Emscripten */
       case SDL_MOUSEBUTTONDOWN:
 		fullscreen = !fullscreen;
-        disp_init();
+		disp_init(width, height);
 		break;
 #endif
       case SDL_KEYDOWN:
@@ -172,12 +173,10 @@ void disp_processInput(void) {
         break;
       case SDL_VIDEORESIZE:
         /* Why are there events when there is no resize? */
-        if (XMax != (event.resize.w / scaling - 1) ||
-            YMax != (event.resize.h / scaling - 1)) {
-		XMax = event.resize.w / scaling - 1;
-		YMax = event.resize.h / scaling - 1;
-		disp_init();
-		handleresize(XMax + 1, YMax + 1);
+        if (width != (event.resize.w / scaling) ||
+            height != (event.resize.h / scaling)) {
+		disp_init(event.resize.w / scaling, event.resize.h / scaling);
+		handleresize(width, height);
         }
 		break;
       case SDL_QUIT:
@@ -190,7 +189,7 @@ void disp_processInput(void) {
   }
 }
 
-void disp_init()
+void disp_init(int newwidth, int newheight)
 {
   Uint32 videoflags = SDL_HWSURFACE | SDL_DOUBLEBUF |
                       (fullscreen ? SDL_FULLSCREEN : SDL_RESIZABLE);
@@ -199,6 +198,9 @@ void disp_init()
   int usedepth;
   int resize = 0;
   
+  width = newwidth;
+  height = newheight;
+
   if (!inited) {
 #ifndef EMSCRIPTEN
     const SDL_VideoInfo *vi;
@@ -215,9 +217,6 @@ void disp_init()
 #endif
 
     SDL_WM_SetCaption("Acidwarp","acidwarp");
-
-    /* XMax = 319;
-    YMax = 199;	 */
   }
 
   /* If resizing, there may be old stuff which needs to be freed */
@@ -261,8 +260,8 @@ void disp_init()
   if (!fullscreen) {
     scaling = 1;
     if (winwidth != 0) {
-	  XMax = winwidth;
-	  YMax = winheight;
+	  width = winwidth;
+	  height = winheight;
 	  resize = 1;
       winwidth = 0;	  
     }
@@ -280,7 +279,7 @@ void disp_init()
 	  int newheight = 0;
 	  int curdiff;
 	  int bestdiff = -1;
-	  int curpix = (XMax+1) * (YMax+1);
+	  int curpix = width * height;
 	  int i, j;
       for(i=0;modes[i];i++) {
 	    for (j=1;j<=2; j++) { // try out scaling
@@ -297,11 +296,11 @@ void disp_init()
 	    }
 	  }
 	  
-	  if (newwidth != 0 && (newwidth != XMax+1 || newheight != YMax+1)) {
-	    winwidth = XMax;
-	    winheight = YMax;
-		XMax = newwidth - 1;
-		YMax = newheight - 1;
+	  if (newwidth != 0 && (newwidth != width || newheight != height)) {
+	    winwidth = width;
+	    winheight = height;
+		width = newwidth;
+		height = newheight;
 		resize = 1;
       }
 	}
@@ -310,7 +309,7 @@ void disp_init()
   /* The screen is a destination for SDL_BlitSurface() copies.
    * Nothing is ever directly drawn here.
    */
-  screen = SDL_SetVideoMode((XMax+1)*scaling, (YMax+1)*scaling,
+  screen = SDL_SetVideoMode(width*scaling, height*scaling,
                             usedepth, videoflags);
   if (!screen) disp_SDLFatal("setting video mode");
 
@@ -325,7 +324,7 @@ void disp_init()
      * formats differ or to respond to SDL_VIDEOEXPOSE events.
      */
     surface = SDL_CreateRGBSurface(SDL_SWSURFACE,
-                                   (XMax+1)*scaling, (YMax+1)*scaling,
+                                   width*scaling, height*scaling,
                                    8, 0, 0, 0, 0);
   }
 
@@ -343,14 +342,14 @@ void disp_init()
     }
   } else {
     disp_DrawingOnSurface = 0;
-    buf_graf = malloc ((XMax + 1) * (YMax + 1));
-    buf_graf_stride = XMax + 1;
+    buf_graf = malloc (width * height);
+    buf_graf_stride = width;
     /* Clearing is only needed for the initial logo */
-    if (!inited) memset(buf_graf, 0, (XMax + 1) * (YMax + 1));
+    if (!inited) memset(buf_graf, 0, width * height);
   }
 
   if (inited && resize) {
-    handleresize(XMax + 1, YMax + 1);
+    handleresize(width, height);
   }
 
   inited = 1;
