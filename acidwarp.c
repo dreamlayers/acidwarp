@@ -14,7 +14,8 @@
 #include <emscripten.h>
 #endif
 
-#include "SDL.h"
+#include <SDL.h>
+#include <SDL_main.h>
  
 #include "warp_text.c"
 #include "handy.h"
@@ -127,8 +128,6 @@ static void updateSDLSurface(void) {
 
   SDL_Flip(surface);
 }
-
-#undef main
 
 int main (int argc, char *argv[])
 {
