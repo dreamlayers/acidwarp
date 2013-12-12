@@ -5,6 +5,7 @@
 #include "acidwarp.h"
 #include "rolnfade.h"
 #include "palinit.h"
+#include "display.h"
 
 static int RedRollDirection = 0, GrnRollDirection = 0, BluRollDirection = 0;
 UINT FadeCompleteFlag = 0;

@@ -18,11 +18,4 @@
 #define BLUE 2
 #define NUM_PALETTE_TYPES       8
 
-void disp_setPalette(unsigned char *palette);
-
-
-
-
-
-
-
+void handleinput(int key);
