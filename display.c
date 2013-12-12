@@ -6,11 +6,16 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <SDL.h>
 
 #include "handy.h"
 #include "acidwarp.h"
 #include "display.h"
+
+#if !defined(WIN32)
+#define HAVE_PALETTE
+#endif
 
 static SDL_Surface *surface = NULL, *screen = NULL;
 static int disp_DrawingOnSurface;
@@ -42,6 +47,11 @@ void disp_setPalette(unsigned char *palette)
   if (disp_UsePalette) {
     /* Simply change the palette */
     SDL_SetPalette(screen, SDL_PHYSPAL, sdlPalette, 0, 256);
+#ifdef EMSCRIPTEN
+    /* This is needed for palette change to take effect. */
+    SDL_LockSurface(screen);
+    SDL_UnlockSurface(screen);
+#endif
   } else
 #endif
   {
@@ -150,10 +160,13 @@ void disp_processInput(void) {
           disp_finishUpdate();
         }
         break;
+#ifndef EMSCRIPTEN
+      /* SDL full screen switching has no useful effect with Emscripten */
       case SDL_MOUSEBUTTONDOWN:
 		fullscreen = !fullscreen;
         disp_init();
 		break;
+#endif
       case SDL_KEYDOWN:
         disp_processKey(event.key.keysym.sym);
         break;
@@ -183,19 +196,23 @@ void disp_init()
   Uint32 videoflags = SDL_HWSURFACE | SDL_DOUBLEBUF |
                       (fullscreen ? SDL_FULLSCREEN : SDL_RESIZABLE);
   static int inited = 0;
-  static int nativedepth = 0;
+  static int nativedepth = 8;
   int usedepth;
   
   if (!inited) {
+#ifndef EMSCRIPTEN
     const SDL_VideoInfo *vi;
+#endif
 
     /* Initialize SDL */
     if ( SDL_Init(SDL_INIT_VIDEO) < 0 ) {
       disp_SDLFatal("initializing video subsystem");
     }
 
+#ifndef EMSCRIPTEN
     vi = SDL_GetVideoInfo();
     nativedepth = vi->vfmt->BitsPerPixel;
+#endif
 
     SDL_WM_SetCaption("Acidwarp","acidwarp");
 
@@ -214,13 +231,22 @@ void disp_init()
   }
   /* No need to ever free the screen surface from SDL_SetVideoMode() */
   
+#ifndef EMSCRIPTEN
+  /* This causes an error in Firefox */
   SDL_ShowCursor(!fullscreen);
+#endif
 
 #ifdef HAVE_PALETTE
   if (fullscreen || nativedepth == 8) {
     disp_UsePalette = 1;
     usedepth = 8;
+#ifndef EMSCRIPTEN
+    /* This seems to have no beneficial effect with Emscrpten SDL.
+     * The displayed image never chages in response to SDL_SetPalette().
+     * Setting the flag just increases CPU usage.
+     */
     videoflags |= SDL_HWPALETTE;
+#endif
   } else {
     disp_UsePalette = 0;
     usedepth = nativedepth;
@@ -306,7 +332,7 @@ void disp_init()
   if (!surface) disp_SDLFatal("creating secondary surface");
 
   if (scaling == 1
-#ifdef HAVE_PALETTE
+#if defined(HAVE_PALETTE) && !defined(EMSCRIPTEN)
       && !disp_UsePalette
 #endif
       ) {

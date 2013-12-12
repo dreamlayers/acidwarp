@@ -5,13 +5,7 @@ ifeq ($(PLATFORM),Emscripten)
 
 CC = emcc
 EXESUFFIX = .html
-LDFLAGS = $(CFLAGS)
-
-# Firefox doesn't like this line
-.PHONY : bugfix
-bugfix : acidwarp.html
-	sed -i 's,^          Module\[.canvas.\].exitPointerLock();$$,//&,' \
-	    acidwarp.js
+LDFLAGS = $(CFLAGS) --pre-js pre.js
 
 else
 

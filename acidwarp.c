@@ -16,10 +16,6 @@
 
 #include <SDL.h>
 #include <SDL_main.h>
-
-#if !defined(WIN32) && !defined(EMSCRIPTEN)
-#define HAVE_PALETTE
-#endif
  
 #include "warp_text.c"
 #include "handy.h"
@@ -329,13 +325,13 @@ void makeShuffledList(int *list, int listSize)
 void generate_image(int imageFuncNum, UCHAR *buf_graf,
                     int xcenter, int ycenter,
                     int xmax, int ymax,
-                    int colormax, int stride)
+                    int colormax, int xsize)
 {
   
   /* WARNING!!! Major change from long to int.*/
   /* ### Changed back to long. Gives lots of warnings. Will fix soon. */
   
-  long /* int */ x, y, dx, dy, dist, angle, xsize = xmax + 1;
+  long /* int */ x, y, dx, dy, dist, angle;
   long color;
   
   /* Some general purpose random angles and offsets. Not all functions use them. */
@@ -560,8 +556,6 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
 	      
 	      if (color < 64)
 		color += RANDOM (16) - 8;
-	      else
-						color = color;
 	      break; 
 	      
 	    case 34:	/* Variation on Rain */
@@ -653,7 +647,7 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
 	  ++color;
           /* color 0 is never used, so all colors are from 1 through 255 */
 	  
-	  *(buf_graf + (stride * y) + x) = (UCHAR)color;
+	  *(buf_graf + (xsize * y) + x) = (UCHAR)color;
           /* Store the color in the buffer */
 	}
       /* end for (y = 0; y < ymax; ++y)	*/
