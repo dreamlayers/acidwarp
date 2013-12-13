@@ -54,6 +54,7 @@ char *Help_string[] =
 	"\n",
 	"'n'   This option tells acidwarp not to display the logo at starup.\n",
 	"'f'   Use floating point image generator.\n",
+	"'F'   Use floating point image generator and scale images.\n",
         "\n",
         "'s' - Speed. This option controls the speed at which the palettes rotate. \n",
         "\n",      

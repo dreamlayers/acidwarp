@@ -41,7 +41,7 @@ lut.o: lut.c handy.h lut.h
 palinit.o: palinit.c handy.h acidwarp.h palinit.h
 rolnfade.o: rolnfade.c handy.h acidwarp.h rolnfade.h palinit.h display.h
 display.o: display.c display.h acidwarp.h handy.h
-img_float.o: img_float.c acidwarp.h
+img_float.o: img_float.c gen_img.c acidwarp.h
 
 clean:
 	$(RM) *.o $(TARGET)

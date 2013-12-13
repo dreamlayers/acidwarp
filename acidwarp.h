@@ -33,4 +33,4 @@ void handleresize(int width, int height);
 void generate_image_float(int imageFuncNum, UCHAR *buf_graf,
                           int xcenter, int ycenter,
                           int xmax, int ymax,
-                          int colormax, int xsize);
+                          int colormax, int xsize, int normalize);

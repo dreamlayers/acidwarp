@@ -33,7 +33,7 @@
 static int ROTATION_DELAY = 30000;
 /* GraphicsContext *physicalscreen; */
 static int show_logo = 1, image_time = 20;
-static int floating_point = 0;
+static int floating_point = 0, normalize = 0;
 static int XMax = 319, YMax = 199;
 UCHAR *buf_graf = NULL;
 unsigned int buf_graf_stride = 0;
@@ -258,7 +258,7 @@ void redraw(void) {
     if (floating_point) {
       generate_image_float(imageFuncList[imageFuncListIndex],
                            buf_graf, XMax/2, YMax/2, XMax, YMax,
-                           255, buf_graf_stride);
+                           255, buf_graf_stride, normalize);
     } else {
       generate_image(imageFuncList[imageFuncListIndex],
                      buf_graf, XMax/2, YMax/2, XMax, YMax,
@@ -300,6 +300,11 @@ static void commandline(int argc, char *argv[])
       else
       if(!strcmp("-f",argv[argNum])) {
         floating_point = 1;
+      }
+      else
+      if(!strcmp("-F",argv[argNum])) {
+        floating_point = 1;
+        normalize = 1;
       }
       else
       if(!strcmp("-d",argv[argNum])) {

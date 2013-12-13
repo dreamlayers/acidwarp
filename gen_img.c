@@ -6,9 +6,9 @@
 
 #ifdef ENABLE_FLOAT
 void generate_image_float(int imageFuncNum, UCHAR *buf_graf,
-                          int xcenter, int ycenter,
-                          int xmax, int ymax,
-                          int colormax, int xsize)
+                          int _xcenter, int _ycenter,
+                          int _xmax, int _ymax,
+                          int colormax, int xsize, int normalize)
 #else
 void generate_image(int imageFuncNum, UCHAR *buf_graf,
                     int xcenter, int ycenter,
@@ -20,14 +20,36 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
   /* WARNING!!! Major change from long to int.*/
   /* ### Changed back to long. Gives lots of warnings. Will fix soon. */
 
+#ifndef ENABLE_FLOAT
   long /* int */ x, y, dx, dy;
-#ifdef ENABLE_FLOAT
-  double dist, angle;
-  double color;
-#else
   long dist, angle;
   long color;
-#endif
+#define _xcenter xcenter
+#define _ycenter ycenter
+#define _xmax xmax
+#define _ymax ymax
+#define _x x
+#define _y y
+#else /* ENABLE_FLOAT */
+  long _x, _y;
+  double x, y;
+  double dx, dy;
+  double dist, angle;
+  double color;
+  double xcenter, ycenter, xmax, ymax;
+
+  if (normalize) {
+    xcenter = (double)(_xcenter * 319) / _xmax;
+    ycenter = (double)(_ycenter * 199) / _ymax;
+    xmax = (double)319;
+    ymax = (double)199;
+  } else {
+    xcenter = _xcenter;
+    ycenter = _ycenter;
+    xmax = _xmax;
+    ymax = _ymax;
+  }
+#endif /* ENABLE_FLOAT */
 
   /* Some general purpose random angles and offsets.
    * Not all functions use them.
@@ -39,12 +61,27 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
   y1 = RANDOM(40)-20;  y2 = RANDOM(40)-20;
   y3 = RANDOM(40)-20;  y4 = RANDOM(40)-20;
 
-  for (y = 0; y <= ymax; ++y)
+  for (_y = 0; _y <= _ymax; ++_y)
     {
+#ifdef ENABLE_FLOAT
+      if (normalize) {
+        y = (double)(_y * 199) / _ymax;
+      } else {
+        y = _y;
+      }
+#endif
 
-      for (x = 0; x <= xmax; ++x)
+      for (_x = 0; _x <= _xmax; ++_x)
         {
+#ifdef ENABLE_FLOAT
+          if (normalize) {
+            x = (double)(_x * 319) / _xmax;
+          } else {
+            x = _x;
+          }
+#endif
           dx = x - xcenter;
+          /* dy may be altered below, so calculate here */
           dy = y - ycenter;
 
           dist  = lut_dist (dx, dy);
@@ -54,7 +91,6 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
              this function is evaluated over a large iteration of values I am
              afraid that it might slow things down even more to have a
              separate function.        */
-
           switch (imageFuncNum)
             {
               /* case -1:        Eight Arm Star -- produces weird discontinuity
@@ -216,8 +252,8 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
               if (y == 0 || x == 0)
                 color = RANDOM (16);
               else
-                color = (  *(buf_graf + (xsize *  y   ) + (x-1))
-                           + *(buf_graf + (xsize * (y-1)) +    x)) / 2
+                color = (  *(buf_graf + (xsize *  _y   ) + (_x-1))
+                         + *(buf_graf + (xsize * (_y-1)) +    _x)) / 2
                   + RANDOM (16) - 8;
               break;
 
@@ -225,8 +261,8 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
               if (y == 0 || x == 0)
                 color = RANDOM (1024);
               else
-                color = dist/6 + (*(buf_graf + (xsize * y    ) + (x-1))
-                                  +  *(buf_graf + (xsize * (y-1)) +    x)) / 2
+                color = dist/6 + (*(buf_graf + (xsize * _y    ) + (_x-1))
+                               +  *(buf_graf + (xsize * (_y-1)) +    _x)) / 2
                 + RANDOM (16) - 8;
               break;
 
@@ -241,15 +277,15 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
               break;
 
             case 32:
-              color = dy ^ dx;
+              color = xor(dy, dx);
               break;
 
             case 33:        /* Variation on Rain */
               if (y == 0 || x == 0)
                 color = RANDOM (16);
               else
-                color = (  *(buf_graf + (xsize *  y   ) + (x-1))
-                           + *(buf_graf + (xsize * (y-1)) +  x   )  ) / 2;
+                color = (  *(buf_graf + (xsize *  _y   ) + (_x-1))
+                         + *(buf_graf + (xsize * (_y-1)) +  _x   )  ) / 2;
 
               color += RANDOM (2) - 1;
 
@@ -261,8 +297,8 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
               if (y == 0 || x == 0)
                 color = RANDOM (16);
               else
-                color = (  *(buf_graf + (xsize *  y   ) + (x-1))
-                           + *(buf_graf + (xsize * (y-1)) +  x   )  ) / 2;
+                color = (  *(buf_graf + (xsize *  _y   ) + (_x-1))
+                         + *(buf_graf + (xsize * (_y-1)) +  _x   )  ) / 2;
 
               if (color < 100)
                 color += RANDOM (16) - 8;
@@ -302,7 +338,12 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
           break;
 
             case 38:
+#ifndef ENABLE_FLOAT
               if (dy%2)
+#else
+              /* Intent is to interlace two different screens */
+              if (_y % 2)
+#endif
                 {
                   dy *= 2;
                   dist  = lut_dist (dx, dy);
@@ -321,10 +362,10 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
               break;
 
             case 40:
-              color = dy ^ dx;
+              color = xor(dy, dx);
               dx = x - xcenter;
               dy = (y - ycenter)*2;
-              color = (color +  (dy ^ dx)) / 2;
+              color = (color +  xor(dy, dx)) / 2;
               break;
 
             default:
@@ -356,7 +397,7 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
           ++color;
           /* color 0 is never used, so all colors are from 1 through 255 */
 
-          *(buf_graf + (xsize * y) + x) = (UCHAR)color;
+          *(buf_graf + (xsize * _y) + _x) = (UCHAR)color;
           /* Store the color in the buffer */
         }
       /* end for (y = 0; y < ymax; ++y)        */
@@ -364,12 +405,21 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
   /* end for (x = 0; x < xmax; ++x)        */
 
 #if 0        /* For diagnosis, put palette display line at top of new image */
-  for (x = 0; x < xmax; ++x)
+  for (_x = 0; _x < _xmax; ++_x)
     {
-      color = (x <= 255) ? x : 0;
+      color = (_x <= 255) ? _x : 0;
 
-      for (y = 0; y < 3; ++y)
-        *(buf_graf + (xsize * y) + x) = (UCHAR)color;
+      for (_y = 0; _y < 3; ++_y)
+        *(buf_graf + (xsize * _y) + _x) = (UCHAR)color;
     }
 #endif
 }
+
+#ifndef ENABLE_FLOAT
+#undef _xcenter
+#undef _ycenter
+#undef _xmax
+#undef _ymax
+#undef _x
+#undef _y
+#endif
