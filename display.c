@@ -17,16 +17,20 @@
 #define HAVE_PALETTE
 #endif
 
+#if !defined(EMSCRIPTEN)
+#define HAVE_FULLSCREEN
+#endif
+
 static SDL_Surface *surface = NULL, *screen = NULL;
 static int disp_DrawingOnSurface;
 #ifdef HAVE_PALETTE
 static int disp_UsePalette;
 #endif
+#ifdef HAVE_FULLSCREEN
 static int fullscreen = 0;
+#endif
 static int scaling = 1;
 // Save window size when in full screen
-static int winwidth = 0;
-static int winheight;
 static int width, height;
 
 static void disp_SDLFatal(const char *msg) {
@@ -130,6 +134,33 @@ void disp_finishUpdate(void)
   SDL_Flip(screen);
 }
 
+#ifdef HAVE_FULLSCREEN
+static void disp_toggleFullscreen(void) {
+  static int winwidth = 0;
+  static int winheight;
+
+  if (fullscreen) {
+    fullscreen = 0;
+    /* If going back to windowed mode, restore window size */
+    if (winwidth != 0) {
+      disp_init(winwidth, winheight);
+      winwidth = 0;
+    } else {
+      disp_init(width, height);
+    }
+  } else {
+    /* Save window size for return to windowed mode */
+    winwidth = width;
+    winheight = height;
+    fullscreen = 1;
+    /* disp_init() may select a different size than suggested. It will
+     * handle resizing if needed.
+     */
+    disp_init(width, height);
+  }
+}
+#endif
+
 static void disp_processKey(SDLKey key)
 {
   switch (key) {
@@ -161,11 +192,10 @@ void disp_processInput(void) {
           disp_finishUpdate();
         }
         break;
-#ifndef EMSCRIPTEN
+#ifdef HAVE_FULLSCREEN
       /* SDL full screen switching has no useful effect with Emscripten */
       case SDL_MOUSEBUTTONDOWN:
-		fullscreen = !fullscreen;
-		disp_init(width, height);
+        disp_toggleFullscreen();
 		break;
 #endif
       case SDL_KEYDOWN:
@@ -176,7 +206,6 @@ void disp_processInput(void) {
         if (width != (event.resize.w / scaling) ||
             height != (event.resize.h / scaling)) {
 		disp_init(event.resize.w / scaling, event.resize.h / scaling);
-		handleresize(width, height);
         }
 		break;
       case SDL_QUIT:
@@ -189,43 +218,63 @@ void disp_processInput(void) {
   }
 }
 
-void disp_init(int newwidth, int newheight)
+#ifdef HAVE_FULLSCREEN
+/* Function for finding the best SDL full screen mode for filling the screen.
+ *
+ * Inputs:
+ * modes: array of pointers to SDL_Rect structures describing modes.
+ * width, height: dimensions of desired mode
+ * desiredaspect: desired aspect ratio
+ *
+ * Outputs:
+ * width, height: updated with dimensions of found mode
+ * scaling: updated with scaling to be used along with that mode
+ */
+static void disp_findBestMode(SDL_Rect ** modes,
+                              int *width, int *height,
+                              int *scaling, int desiredaspect)
 {
-  Uint32 videoflags = SDL_HWSURFACE | SDL_DOUBLEBUF |
-                      (fullscreen ? SDL_FULLSCREEN : SDL_RESIZABLE);
-  static int inited = 0;
-  static int nativedepth = 8;
-  static int desktopaspect = 0;
-  int usedepth;
-  int resize = 0;
-  
-  width = newwidth;
-  height = newheight;
+  int bestdiff = -1;
+  int curpix = *width * *height;
+  int i, j;
+  for(i=0;modes[i];i++) {
+    /* For every mode, try every possible scaling */
+    for (j=1; j<=2; j++) {
+      int asperr, pixerr, curdiff;
 
-  if (!inited) {
-#ifndef EMSCRIPTEN
-    const SDL_VideoInfo *vi;
-#endif
+      /* Difference in number of pixels */
+      pixerr = modes[i]->w * modes[i]->h / (j * j) - curpix;
+      if (pixerr < 0) pixerr = -pixerr;
 
-    /* Initialize SDL */
-    if ( SDL_Init(SDL_INIT_VIDEO) < 0 ) {
-      disp_SDLFatal("initializing video subsystem");
-    }
+      /* Difference in aspect ratio compared to desktop */
+      if (desiredaspect > 0) {
+        int aspect = modes[i]->w * 1024 / modes[i]->h;
+        asperr = aspect - desiredaspect;
+        if (asperr < 0) asperr = -asperr;
+        /* Aspect ratio is important because we want to fill screen */
+        asperr *= 1024;
+      } else {
+        asperr = 0;
+      }
 
-#ifndef EMSCRIPTEN
-    vi = SDL_GetVideoInfo();
-    if (vi != NULL) {
-      nativedepth = vi->vfmt->BitsPerPixel;
-      if (vi->current_w > 0 && vi->current_h > 0) {
-        desktopaspect = vi->current_w * 1024 / vi->current_h;
+      /* Use sum of pixel and aspect ratio error */
+      curdiff = pixerr + asperr;
+
+      /* Check if this mode is better */
+      if (bestdiff == -1 || curdiff < bestdiff ||
+          (curdiff == bestdiff && j < *scaling)) {
+        *scaling = j;
+        *width = modes[i]->w / j;
+        *height = modes[i]->h / j;
+        bestdiff = curdiff;
       }
     }
-#endif
-
-    SDL_WM_SetCaption("Acidwarp","acidwarp");
   }
+}
+#endif /* HAVE_FULLSCREEN */
 
-  /* If resizing, there may be old stuff which needs to be freed */
+static void disp_allocateOffscreen(void)
+{
   /* If there was a separate graphics buffer, free it. */
   if (!disp_DrawingOnSurface && buf_graf != NULL) {
     free(buf_graf);
@@ -234,129 +283,6 @@ void disp_init(int newwidth, int newheight)
   if (surface != NULL && surface != screen) {
     SDL_FreeSurface(surface);
   }
-  /* No need to ever free the screen surface from SDL_SetVideoMode() */
-  
-#ifndef EMSCRIPTEN
-  /* This causes an error in Firefox */
-  SDL_ShowCursor(!fullscreen);
-#endif
-
-#ifdef HAVE_PALETTE
-  if (fullscreen || nativedepth == 8) {
-    disp_UsePalette = 1;
-    usedepth = 8;
-#ifndef EMSCRIPTEN
-    /* This seems to have no beneficial effect with Emscrpten SDL.
-     * The displayed image never chages in response to SDL_SetPalette().
-     * Setting the flag just increases CPU usage.
-     */
-    videoflags |= SDL_HWPALETTE;
-#endif
-  } else {
-    disp_UsePalette = 0;
-    usedepth = nativedepth;
-    videoflags |= SDL_ANYFORMAT;
-  }
-#else
-  usedepth = nativedepth;
-  videoflags |= SDL_ANYFORMAT;
-#endif
-
-  // If going back to windowed mode, restore window size
-  if (!fullscreen) {
-    scaling = 1;
-    if (winwidth != 0) {
-	  width = winwidth;
-	  height = winheight;
-	  resize = 1;
-      winwidth = 0;	  
-    }
-  } else {
-    SDL_Rect **modes;
-
-    /* Get available fullscreen modes */
-#ifdef HAVE_PALETTE
-    if (disp_UsePalette) {
-      /* Attempt to find a 256 color mode */
-      struct SDL_PixelFormat wantpf;
-      memset(&wantpf, 0, sizeof(wantpf));
-      wantpf.BitsPerPixel = 8;
-      wantpf.BytesPerPixel = 1;
-      modes = SDL_ListModes(&wantpf, videoflags);
-      if (modes == NULL) {
-        /* Couldn't find a 256 colour mode. Try to find any mode. */
-        disp_UsePalette = 0;
-        videoflags &= ~SDL_HWPALETTE;
-        videoflags |= SDL_ANYFORMAT;
-        modes = SDL_ListModes(NULL, videoflags);
-      }
-    }
-#else
-    modes = SDL_ListModes(NULL, videoflags);
-#endif
-    if (modes == NULL) {
-      disp_SDLFatal("listing full screen modes");
-    } else if (modes == (SDL_Rect **)-1) {
-      /* All resolutions ok */
-      scaling = 1;
-    } else {
-      // Full screen should really fill the whole screen
-      // Find video mode with closest number of pixels
-      int newwidth = 0;
-	  int newheight = 0;
-	  int bestdiff = -1;
-	  int curpix = width * height;
-	  int i, j;
-      for(i=0;modes[i];i++) {
-	    /* For every mode, try every possible scaling */
-	    for (j=1; j<=2; j++) {
-          int asperr, pixerr, curdiff;
-
-          /* Difference in number of pixels */
-	      pixerr = modes[i]->w * modes[i]->h / (j * j) - curpix;
-          if (pixerr < 0) pixerr = -pixerr;
-
-          /* Difference in aspect ratio compared to desktop */
-          if (desktopaspect > 0) {
-            int aspect = modes[i]->w * 1024 / modes[i]->h;
-            asperr = aspect - desktopaspect;
-            if (asperr < 0) asperr = -asperr;
-            /* Aspect ratio is important because we want to fill screen */
-            asperr *= 1024;
-          } else {
-            asperr = 0;
-          }
-
-          /* Use sum of pixel and aspect ratio error */
-          curdiff = pixerr + asperr;
-
-          /* Check if this mode is better */
-          if (bestdiff == -1 || curdiff < bestdiff || 
-	          (curdiff == bestdiff && j < scaling)) {
-            scaling = j;
-   	        newwidth = modes[i]->w / j;
-	        newheight = modes[i]->h / j;
-	        bestdiff = curdiff;
-		  }	  
-	    }
-	  }
-	  
-	  if (newwidth != 0 && (newwidth != width || newheight != height)) {
-	    winwidth = width;
-	    winheight = height;
-		width = newwidth;
-		height = newheight;
-		resize = 1;
-      }
-	}
-  }
-
-  /* The screen is a destination for SDL_BlitSurface() copies.
-   * Nothing is ever directly drawn here.
-   */
-  screen = SDL_SetVideoMode(width*scaling, height*scaling,
-                            usedepth, videoflags);
-  if (!screen) disp_SDLFatal("setting video mode");
 
 #ifdef HAVE_PALETTE
   if (disp_UsePalette) {
@@ -371,11 +297,14 @@ void disp_init(int newwidth, int newheight)
     surface = SDL_CreateRGBSurface(SDL_SWSURFACE,
                                    width*scaling, height*scaling,
                                    8, 0, 0, 0, 0);
+
+    if (!surface) disp_SDLFatal("creating secondary surface");
   }
 
-  if (!surface) disp_SDLFatal("creating secondary surface");
-
   if (scaling == 1
+      /* Normally need to have offscreen data for expose events,
+       * but no need for that with Emscripten.
+       */
 #if defined(HAVE_PALETTE) && !defined(EMSCRIPTEN)
       && !disp_UsePalette
 #endif
@@ -389,13 +318,125 @@ void disp_init(int newwidth, int newheight)
     disp_DrawingOnSurface = 0;
     buf_graf = malloc (width * height);
     buf_graf_stride = width;
-    /* Clearing is only needed for the initial logo */
-    if (!inited) memset(buf_graf, 0, width * height);
+    memset(buf_graf, 0, width * height);
+  }
+}
+
+void disp_init(int newwidth, int newheight)
+{
+  Uint32 videoflags = SDL_HWSURFACE | SDL_DOUBLEBUF |
+#ifdef HAVE_FULLSCREEN
+                      (fullscreen ? SDL_FULLSCREEN : SDL_RESIZABLE);
+#else
+                      SDL_RESIZABLE;
+#endif
+  static int inited = 0;
+  static int nativedepth = 8;
+#ifdef HAVE_FULLSCREEN
+  static int desktopaspect = 0;
+#endif
+  int usedepth;
+
+  width = newwidth;
+  height = newheight;
+
+  if (!inited) {
+#ifdef HAVE_FULLSCREEN
+    const SDL_VideoInfo *vi;
+#endif
+
+    /* Initialize SDL */
+    if ( SDL_Init(SDL_INIT_VIDEO) < 0 ) {
+      disp_SDLFatal("initializing video subsystem");
+    }
+
+#ifdef HAVE_FULLSCREEN
+    vi = SDL_GetVideoInfo();
+    if (vi != NULL) {
+      nativedepth = vi->vfmt->BitsPerPixel;
+      if (vi->current_w > 0 && vi->current_h > 0) {
+        desktopaspect = vi->current_w * 1024 / vi->current_h;
+      }
+    }
+#endif
+
+    SDL_WM_SetCaption("Acidwarp","acidwarp");
+  }
+  
+#ifdef HAVE_FULLSCREEN
+  /* This causes an error when using Emscripten and Firefox */
+  SDL_ShowCursor(!fullscreen);
+#endif
+
+  usedepth = nativedepth;
+#ifdef HAVE_FULLSCREEN
+  if (fullscreen) {
+    SDL_Rect **modes;
+
+#ifdef HAVE_PALETTE
+    /* Attempt to list 256 colour modes */
+    struct SDL_PixelFormat wantpf;
+    memset(&wantpf, 0, sizeof(wantpf));
+    wantpf.BitsPerPixel = 8;
+    wantpf.BytesPerPixel = 1;
+    modes = SDL_ListModes(&wantpf, videoflags | SDL_HWPALETTE);
+    if (modes != NULL) {
+      /* Found 256 colour mode. Use it. */
+      disp_UsePalette = 1;
+      usedepth = 8;
+      videoflags |= SDL_HWPALETTE;
+    } else {
+      /* Couldn't find a 256 colour mode. Try to find any mode. */
+      disp_UsePalette = 0;
+      videoflags |= SDL_ANYFORMAT;
+      modes = SDL_ListModes(NULL, videoflags);
+    }
+#else /* !HAVE_PALETTE */
+    videoflags |= SDL_ANYFORMAT;
+    /* Get available fullscreen modes */
+    modes = SDL_ListModes(NULL, videoflags);
+#endif /* !HAVE_PALETTE */
+    if (modes == NULL) {
+      disp_SDLFatal("listing full screen modes");
+    } else if (modes == (SDL_Rect **)-1) {
+      /* All resolutions ok */
+      scaling = 1;
+    } else {
+      disp_findBestMode(modes, &width, &height, &scaling, desktopaspect);
+    }
+  } else
+#endif /* HAVE_FULLSCREEN */
+  {
+    /* Not fullscreen, meaning windowed */
+    scaling = 1;
+    if (usedepth == 8) {
+      disp_UsePalette = 1;
+#ifndef EMSCRIPTEN
+      /* This seems to have no beneficial effect with Emscrpten SDL.
+       * The displayed image never chages in response to SDL_SetPalette().
+       * Setting the flag just increases CPU usage.
+       */
+      videoflags |= SDL_HWPALETTE;
+#endif
+    } else {
+      disp_UsePalette = 0;
+      videoflags |= SDL_ANYFORMAT;
+    }
   }
 
-  if (inited && resize) {
-    handleresize(width, height);
-  }
+  /* The screen is a destination for SDL_BlitSurface() copies.
+   * Nothing is ever directly drawn here, except with Emscripten.
+   */
+  screen = SDL_SetVideoMode(width*scaling, height*scaling,
+                            usedepth, videoflags);
+  if (!screen) disp_SDLFatal("setting video mode");
+  /* No need to ever free the screen surface from SDL_SetVideoMode() */
+
+  disp_allocateOffscreen();
+
+  /* This may be unnecessary if switching between windowed 
+   * and full screen mode with the same dimensions. */
+  if (inited) handleresize(width, height);
 
   inited = 1;
 }
