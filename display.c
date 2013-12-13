@@ -195,6 +195,7 @@ void disp_init(int newwidth, int newheight)
                       (fullscreen ? SDL_FULLSCREEN : SDL_RESIZABLE);
   static int inited = 0;
   static int nativedepth = 8;
+  static int desktopaspect = 0;
   int usedepth;
   int resize = 0;
   
@@ -213,7 +214,12 @@ void disp_init(int newwidth, int newheight)
 
 #ifndef EMSCRIPTEN
     vi = SDL_GetVideoInfo();
-    nativedepth = vi->vfmt->BitsPerPixel;
+    if (vi != NULL) {
+      nativedepth = vi->vfmt->BitsPerPixel;
+      if (vi->current_w > 0 && vi->current_h > 0) {
+        desktopaspect = vi->current_w * 1024 / vi->current_h;
+      }
+    }
 #endif
 
     SDL_WM_SetCaption("Acidwarp","acidwarp");
@@ -266,10 +272,31 @@ void disp_init(int newwidth, int newheight)
       winwidth = 0;	  
     }
   } else {
-    /* Get available fullscreen modes */
-    SDL_Rect **modes = SDL_ListModes(0, videoflags);
+    SDL_Rect **modes;
 
-    if(modes == (SDL_Rect **)-1){
+    /* Get available fullscreen modes */
+#ifdef HAVE_PALETTE
+    if (disp_UsePalette) {
+      /* Attempt to find a 256 color mode */
+      struct SDL_PixelFormat wantpf;
+      memset(&wantpf, 0, sizeof(wantpf));
+      wantpf.BitsPerPixel = 8;
+      wantpf.BytesPerPixel = 1;
+      modes = SDL_ListModes(&wantpf, videoflags);
+      if (modes == NULL) {
+        /* Couldn't find a 256 colour mode. Try to find any mode. */
+        disp_UsePalette = 0;
+        videoflags &= ~SDL_HWPALETTE;
+        videoflags |= SDL_ANYFORMAT;
+        modes = SDL_ListModes(NULL, videoflags);
+      }
+    }
+#else
+    modes = SDL_ListModes(NULL, videoflags);
+#endif
+    if (modes == NULL) {
+      disp_SDLFatal("listing full screen modes");
+    } else if (modes == (SDL_Rect **)-1) {
       /* All resolutions ok */
       scaling = 1;
     } else {
@@ -277,15 +304,33 @@ void disp_init(int newwidth, int newheight)
       // Find video mode with closest number of pixels
       int newwidth = 0;
 	  int newheight = 0;
-	  int curdiff;
 	  int bestdiff = -1;
 	  int curpix = width * height;
 	  int i, j;
       for(i=0;modes[i];i++) {
-	    for (j=1;j<=2; j++) { // try out scaling
-	      curdiff = modes[i]->w * modes[i]->h / (j * j) - curpix;
-	      if ((curdiff) < 0)
-	        curdiff = -curdiff;
+	    /* For every mode, try every possible scaling */
+	    for (j=1; j<=2; j++) {
+          int asperr, pixerr, curdiff;
+
+          /* Difference in number of pixels */
+	      pixerr = modes[i]->w * modes[i]->h / (j * j) - curpix;
+          if (pixerr < 0) pixerr = -pixerr;
+
+          /* Difference in aspect ratio compared to desktop */
+          if (desktopaspect > 0) {
+            int aspect = modes[i]->w * 1024 / modes[i]->h;
+            asperr = aspect - desktopaspect;
+            if (asperr < 0) asperr = -asperr;
+            /* Aspect ratio is important because we want to fill screen */
+            asperr *= 1024;
+          } else {
+            asperr = 0;
+          }
+
+          /* Use sum of pixel and aspect ratio error */
+          curdiff = pixerr + asperr;
+
+          /* Check if this mode is better */
           if (bestdiff == -1 || curdiff < bestdiff || 
 	          (curdiff == bestdiff && j < scaling)) {
             scaling = j;
