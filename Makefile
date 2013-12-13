@@ -10,7 +10,7 @@ LDFLAGS = $(CFLAGS) --pre-js pre.js
 else
 
 CFLAGS += $(shell sdl-config --cflags)
-LIBS = $(shell sdl-config --libs)
+LIBS = $(shell sdl-config --libs) -lm
 
 ifeq ($(PLATFORM),Cygwin)
 
@@ -35,7 +35,7 @@ $(TARGET): $(OBJECTS)
 	$(LINK) $(LDFLAGS) $^ -o $@ $(LIBS)
 
 acidwarp.o: acidwarp.c handy.h acidwarp.h lut.h bit_map.h \
- palinit.h rolnfade.h warp_text.c display.h
+ palinit.h rolnfade.h warp_text.c display.h lut_float.c
 bit_map.o: bit_map.c handy.h bit_map.h
 lut.o: lut.c handy.h lut.h
 palinit.o: palinit.c handy.h acidwarp.h palinit.h

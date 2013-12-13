@@ -20,7 +20,12 @@
 #include "warp_text.c"
 #include "handy.h"
 #include "acidwarp.h"
+#define ENABLE_FLOAT
+#ifdef ENABLE_FLOAT
+#include "lut_float.c"
+#else
 #include "lut.h"
+#endif
 #include "bit_map.h"
 #include "palinit.h"
 #include "rolnfade.h"
@@ -348,8 +353,14 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
   /* WARNING!!! Major change from long to int.*/
   /* ### Changed back to long. Gives lots of warnings. Will fix soon. */
   
-  long /* int */ x, y, dx, dy, dist, angle;
+  long /* int */ x, y, dx, dy;
+#ifdef ENABLE_FLOAT
+  double dist, angle;
+  double color;
+#else
+  long dist, angle;
   long color;
+#endif
   
   /* Some general purpose random angles and offsets. Not all functions use them. */
   long x1,x2,x3,x4,y1,y2,y3,y4;
@@ -549,14 +560,18 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
 	      break;
 	      
 	    case 30:
+#ifndef ENABLE_FLOAT
 	      color = lut_sin (lut_dist(dx,     dy - 20) * 4) / 32 ^
 		lut_sin (lut_dist(dx + 20,dy + 20) * 4) / 32 ^
 		lut_sin (lut_dist(dx - 20,dy + 20) * 4) / 32;
 	      break;
+#endif
 	      
 	    case 31:
+#ifndef ENABLE_FLOAT
 	      color = (angle % (ANGLE_UNIT/4)) ^ dist;
 	      break;
+#endif
 	      
 	    case 32:
 	      color = dy ^ dx;
@@ -630,6 +645,7 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
 	      break;
 	      
 	    case 39:
+#ifndef ENABLE_FLOAT
 	      color = (angle % (ANGLE_UNIT/4)) ^ dist;
 	      dx = x - xcenter;
 	      dy = (y - ycenter)*2;
@@ -637,6 +653,7 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
 	      angle = lut_angle (dx, dy);
 	      color = (color +  ((angle % (ANGLE_UNIT/4)) ^ dist)) / 2;
 	      break;
+#endif
 	      
 	    case 40:
 	      color = dy ^ dx;
@@ -656,7 +673,17 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
              I expect MOD to function as it does on my HP-28S.
 	   */
 
+#ifdef ENABLE_FLOAT
+      /* Final colors need to go from 1 to colormax, because color 0 is
+       * not used. Conversion to the palette is by truncation, not
+       * rounding, as if each whole number is a bin (0 for 0 to 1,
+       * 1 for 1 to 2 and so on). So, this requires:
+       * 0 <= color < colormax
+       */
+	  color = fmod(color, colormax);
+#else
 	  color = color % (colormax-1);
+#endif
 	  
 	  if (color < 0)
 	    color += (colormax - 1);
