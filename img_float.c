@@ -1,9 +1,13 @@
-/* Floating point equivalents of Acidwarp lookup table functions */
-
-#ifndef __LUT
-#define __LUT 1
+/* Floating point image generator for Acidwarp */
 
 #include <math.h>
+#include "handy.h"
+#include "acidwarp.h"
+
+#define ENABLE_FLOAT
+
+#define mod(x, y) fmod((x), (y))
+#define xor(x, y) ((int)(x) ^ (int)(y))
 
 /* Resulting colours need to go from 0 to 254, with
  * each getting an equal slice of the circle.
@@ -42,4 +46,4 @@ static double lut_dist (double x, double y)
   return sqrt(x*x + y*y);
 }
 
-#endif /* !__LUT */
+#include "gen_img.c"

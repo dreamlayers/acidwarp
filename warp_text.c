@@ -53,6 +53,7 @@ char *Help_string[] =
 	"      the 'd' and the number of seconds. The default delay is 20 seconds.\n",
 	"\n",
 	"'n'   This option tells acidwarp not to display the logo at starup.\n",
+	"'f'   Use floating point image generator.\n",
         "\n",
         "'s' - Speed. This option controls the speed at which the palettes rotate. \n",
         "\n",      

@@ -30,3 +30,7 @@ enum acidwarp_command {
 
 void handleinput(enum acidwarp_command cmd);
 void handleresize(int width, int height);
+void generate_image_float(int imageFuncNum, UCHAR *buf_graf,
+                          int xcenter, int ycenter,
+                          int xmax, int ymax,
+                          int colormax, int xsize);
