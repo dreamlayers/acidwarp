@@ -23,8 +23,12 @@
 #define ENABLE_FLOAT
 #ifdef ENABLE_FLOAT
 #include "lut_float.c"
+#define mod(x, y) fmod((x), (y))
+#define xor(x, y) ((int)(x) ^ (int)(y))
 #else
 #include "lut.h"
+#define mod(x, y) ((x) % (y))
+#define xor(x, y) ((x) ^ (y))
 #endif
 #include "bit_map.h"
 #include "palinit.h"
@@ -560,18 +564,14 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
 	      break;
 	      
 	    case 30:
-#ifndef ENABLE_FLOAT
-	      color = lut_sin (lut_dist(dx,     dy - 20) * 4) / 32 ^
-		lut_sin (lut_dist(dx + 20,dy + 20) * 4) / 32 ^
-		lut_sin (lut_dist(dx - 20,dy + 20) * 4) / 32;
+	      color = xor(xor(lut_sin (lut_dist(dx,     dy - 20) * 4) / 32,
+		lut_sin (lut_dist(dx + 20,dy + 20) * 4) / 32),
+		lut_sin (lut_dist(dx - 20,dy + 20) * 4) / 32);
 	      break;
-#endif
 	      
 	    case 31:
-#ifndef ENABLE_FLOAT
-	      color = (angle % (ANGLE_UNIT/4)) ^ dist;
+	      color = xor(mod(angle, (ANGLE_UNIT/4)), dist);
 	      break;
-#endif
 	      
 	    case 32:
 	      color = dy ^ dx;
@@ -645,15 +645,13 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
 	      break;
 	      
 	    case 39:
-#ifndef ENABLE_FLOAT
-	      color = (angle % (ANGLE_UNIT/4)) ^ dist;
+	      color = xor(mod(angle, (ANGLE_UNIT/4)), dist);
 	      dx = x - xcenter;
 	      dy = (y - ycenter)*2;
 	      dist = lut_dist (dx, dy);
 	      angle = lut_angle (dx, dy);
-	      color = (color +  ((angle % (ANGLE_UNIT/4)) ^ dist)) / 2;
+	      color = (color +  (xor(mod(angle, (ANGLE_UNIT/4)), dist))) / 2;
 	      break;
-#endif
 	      
 	    case 40:
 	      color = dy ^ dx;
