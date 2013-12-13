@@ -30,10 +30,10 @@ static int disp_UsePalette;
 static int fullscreen = 0;
 #endif
 static int scaling = 1;
-// Save window size when in full screen
 static int width, height;
 
-static void disp_SDLFatal(const char *msg) {
+static void disp_SDLFatal(const char *msg)
+{
   fprintf(stderr, "SDL error while %s: %s", msg, SDL_GetError());
   exit(-1);
 }
@@ -102,27 +102,27 @@ void disp_finishUpdate(void)
     }
     outp = surface->pixels;
 
-  if (scaling == 1) {	  
+  if (scaling == 1) {
     for (row = 0; row < height; row++) {
-	  memcpy(outp, inp, width);
-	  outp += surface->pitch;
-	  inp += width;
+      memcpy(outp, inp, width);
+      outp += surface->pitch;
+      inp += width;
     }
   } else if (scaling == 2) {
     unsigned char *outp2 = outp + surface->pitch;
-	int skip = (surface->pitch - width) << 1;
-	int col;
-	unsigned char c;
+    int skip = (surface->pitch - width) << 1;
+    int col;
+    unsigned char c;
     for (row = 0; row < height; row++) {
-	  for (col = 0; col < width; col++) {
-	    c = *(inp++);
-		*(outp++) = c;
-		*(outp++) = c;
-		*(outp2++) = c;
-		*(outp2++) = c;
-	  }
-	  outp += skip;
-	  outp2 += skip;
+      for (col = 0; col < width; col++) {
+        c = *(inp++);
+        *(outp++) = c;
+        *(outp++) = c;
+        *(outp2++) = c;
+        *(outp2++) = c;
+      }
+      outp += skip;
+      outp2 += skip;
     }
   }
   }
@@ -135,7 +135,8 @@ void disp_finishUpdate(void)
 }
 
 #ifdef HAVE_FULLSCREEN
-static void disp_toggleFullscreen(void) {
+static void disp_toggleFullscreen(void)
+{
   static int winwidth = 0;
   static int winheight;
 
@@ -177,7 +178,7 @@ static void disp_processKey(SDLKey key)
 
 void disp_processInput(void) {
   SDL_Event event;
-  
+
   while ( SDL_PollEvent(&event) > 0 ) {
     switch (event.type) {
       case SDL_VIDEOEXPOSE:
@@ -196,7 +197,7 @@ void disp_processInput(void) {
       /* SDL full screen switching has no useful effect with Emscripten */
       case SDL_MOUSEBUTTONDOWN:
         disp_toggleFullscreen();
-		break;
+        break;
 #endif
       case SDL_KEYDOWN:
         disp_processKey(event.key.keysym.sym);
@@ -205,12 +206,12 @@ void disp_processInput(void) {
         /* Why are there events when there is no resize? */
         if (width != (event.resize.w / scaling) ||
             height != (event.resize.h / scaling)) {
-		disp_init(event.resize.w / scaling, event.resize.h / scaling);
+          disp_init(event.resize.w / scaling, event.resize.h / scaling);
         }
-		break;
+        break;
       case SDL_QUIT:
-		handleinput(CMD_QUIT);
-		break;
+        handleinput(CMD_QUIT);
+        break;
 
       default:
         break;
@@ -362,7 +363,7 @@ void disp_init(int newwidth, int newheight)
 
     SDL_WM_SetCaption("Acidwarp","acidwarp");
   }
-  
+
 #ifdef HAVE_FULLSCREEN
   /* This causes an error when using Emscripten and Firefox */
   SDL_ShowCursor(!fullscreen);
@@ -434,7 +435,7 @@ void disp_init(int newwidth, int newheight)
 
   disp_allocateOffscreen();
 
-  /* This may be unnecessary if switching between windowed 
+  /* This may be unnecessary if switching between windowed
    * and full screen mode with the same dimensions. */
   if (inited) handleresize(width, height);
 
