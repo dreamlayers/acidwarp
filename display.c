@@ -326,6 +326,9 @@ static void disp_allocateOffscreen(void)
 void disp_init(int newwidth, int newheight)
 {
   Uint32 videoflags = SDL_HWSURFACE | SDL_DOUBLEBUF |
+#ifndef HAVE_PALETTE
+                      SDL_ANYFORMAT |
+#endif
 #ifdef HAVE_FULLSCREEN
                       (fullscreen ? SDL_FULLSCREEN : SDL_RESIZABLE);
 #else
@@ -393,7 +396,6 @@ void disp_init(int newwidth, int newheight)
       modes = SDL_ListModes(NULL, videoflags);
     }
 #else /* !HAVE_PALETTE */
-    videoflags |= SDL_ANYFORMAT;
     /* Get available fullscreen modes */
     modes = SDL_ListModes(NULL, videoflags);
 #endif /* !HAVE_PALETTE */
@@ -410,6 +412,7 @@ void disp_init(int newwidth, int newheight)
   {
     /* Not fullscreen, meaning windowed */
     scaling = 1;
+#ifdef HAVE_PALETTE
     if (usedepth == 8) {
       disp_UsePalette = 1;
 #ifndef EMSCRIPTEN
@@ -423,6 +426,7 @@ void disp_init(int newwidth, int newheight)
       disp_UsePalette = 0;
       videoflags |= SDL_ANYFORMAT;
     }
+#endif
   }
 
   /* The screen is a destination for SDL_BlitSurface() copies.
