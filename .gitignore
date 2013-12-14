@@ -1,0 +1,9 @@
+*.o
+acidwarp
+acidwarp.exe
+acidwarp.js
+acidwarp.html
+test_tables
+test_tables.exe
+stdout.txt
+stderr.txt
