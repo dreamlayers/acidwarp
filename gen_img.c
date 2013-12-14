@@ -30,8 +30,10 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
 #define _ymax ymax
 #define _x x
 #define _y y
+#define _color color
 #else /* ENABLE_FLOAT */
   long _x, _y;
+  long _color;
   double x, y;
   double dx, dy;
   double dist, angle;
@@ -379,25 +381,30 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
              I expect MOD to function as it does on my HP-28S.
            */
 
+         /* Final colors need to go from 1 to colormax, because color 0 is
+          * not used. Floating point conversion to the palette is by
+          * truncation, not rounding, as if each whole number is a bin
+          * (0 for 0 to 1, 1 for 1 to 2 and so on). 1 is added later,
+          * so right here this requires: 0 <= color < colormax
+          *
+          * Integer version of computation seems wrong, resulting in
+          * colors from 0 to colormax-1, but that is tricky because
+          * ANGLE_UNIT is 256, not 255. Maybe using all 256 colours could
+          * help?
+          */
 #ifdef ENABLE_FLOAT
-      /* Final colors need to go from 1 to colormax, because color 0 is
-       * not used. Conversion to the palette is by truncation, not
-       * rounding, as if each whole number is a bin (0 for 0 to 1,
-       * 1 for 1 to 2 and so on). So, this requires:
-       * 0 <= color < colormax
-       */
-          color = fmod(color, colormax);
+          _color = (int)color % colormax;
 #else
           color = color % (colormax-1);
 #endif
 
-          if (color < 0)
-            color += (colormax - 1);
+          if (_color < 0)
+            _color += (colormax - 1);
 
-          ++color;
+          ++_color;
           /* color 0 is never used, so all colors are from 1 through 255 */
 
-          *(buf_graf + (xsize * _y) + _x) = (UCHAR)color;
+          *(buf_graf + (xsize * _y) + _x) = (UCHAR)_color;
           /* Store the color in the buffer */
         }
       /* end for (y = 0; y < ymax; ++y)        */
@@ -422,4 +429,5 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
 #undef _ymax
 #undef _x
 #undef _y
+#undef _color
 #endif
