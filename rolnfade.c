@@ -260,6 +260,10 @@ int fadeOut(void)
   return FadeCompleteFlag;
 }
 
+/* Normally, palette is applied automatically. This only needs to be
+ * called from outside rolnfade.c when a new SDL surface is created
+ * and colour cycling is paused.
+ */
 void applyPalette(void)
 {
   disp_setPalette(MainPalArray);

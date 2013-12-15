@@ -288,14 +288,16 @@ void redraw(void) {
     }
   }
   disp_finishUpdate();
-  // FIXME disp_setPalette(MainPalArray);
 }
 
 void handleresize(int newwidth, int newheight)
 {
     width = newwidth;
     height = newheight;
-    if (ready_to_draw) redraw();
+    if (ready_to_draw) {
+      redraw();
+      applyPalette();
+    }
 }
 
 static void commandline(int argc, char *argv[])
