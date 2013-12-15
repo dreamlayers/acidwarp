@@ -8,7 +8,11 @@
 #include "display.h"
 
 static int RedRollDirection = 0, GrnRollDirection = 0, BluRollDirection = 0;
-UINT FadeCompleteFlag = 0;
+static UINT FadeCompleteFlag = 0;
+static UCHAR MainPalArray [256 * 3];
+static UCHAR TargetPalArray [256 * 3];
+static int paletteTypeNum = 0;
+static int fade_dir = TRUE;
 
 static void roll_rgb_palArray (UCHAR *MainpalArray);
 static void maybeInvertSubPalRollDirection(void);
@@ -42,7 +46,7 @@ static void rotateforward(int color, UCHAR *Pal)
 }
 
 
-void rollMainPalArrayAndLoadDACRegs(UCHAR *MainPalArray)
+static void rollMainPalArrayAndLoadDACRegs(UCHAR *MainPalArray)
 {
         maybeInvertSubPalRollDirection();
         roll_rgb_palArray(MainPalArray);
@@ -50,7 +54,7 @@ void rollMainPalArrayAndLoadDACRegs(UCHAR *MainPalArray)
 }
 
 
-void rolNFadeWhtMainPalArrayNLoadDAC(UCHAR *MainPalArray)
+static void rolNFadeWhtMainPalArrayNLoadDAC(UCHAR *MainPalArray)
 {
 /* Fade to white, and keep the palette rolling while the fade is in progress.	*/
 	if (!FadeCompleteFlag)
@@ -61,7 +65,7 @@ void rolNFadeWhtMainPalArrayNLoadDAC(UCHAR *MainPalArray)
 	}
 }
 
-void rolNFadeBlkMainPalArrayNLoadDAC(UCHAR *MainPalArray)
+static void rolNFadeBlkMainPalArrayNLoadDAC(UCHAR *MainPalArray)
 {
 /* Fade to black, and keep the palette rolling while the fade is in progress.   */
 	if (!FadeCompleteFlag)
@@ -72,7 +76,7 @@ void rolNFadeBlkMainPalArrayNLoadDAC(UCHAR *MainPalArray)
 	}
 }
 
-void rolNFadeMainPalAryToTargNLodDAC(UCHAR *MainPalArray, UCHAR *TargetPalArray)
+static void rolNFadeMainPalAryToTargNLodDAC(UCHAR *MainPalArray, UCHAR *TargetPalArray)
 {
 /* Fade from one palette to a new palette, and keep the palette rolling while the fade is in progress.	*/
 	if (!FadeCompleteFlag)
@@ -89,14 +93,14 @@ void rolNFadeMainPalAryToTargNLodDAC(UCHAR *MainPalArray, UCHAR *TargetPalArray)
     rollMainPalArrayAndLoadDACRegs(MainPalArray);
 }
 
-#if 0
 /* WARNING! This is the function that handles the case of the SPECIAL PALETTE TYPE.
    This palette type is special in that there is no specific palette assigned to its
    palette number. Rather the palette is morphed from one static palette to another.
    The effect is quite interesting.
 */
 
-void rolNFadMainPalAry2RndTargNLdDAC(UCHAR *MainPalArray, UCHAR *TargetPalArray)
+static void rolNFadMainPalAry2RndTargNLdDAC(UCHAR *MainPalArray,
+                                            UCHAR *TargetPalArray)
 {
 	if (fadePalArrayToTarget (MainPalArray, TargetPalArray) == DONE)
          initPalArray (TargetPalArray, RANDOM (NUM_PALETTE_TYPES));
@@ -106,7 +110,6 @@ void rolNFadMainPalAry2RndTargNLdDAC(UCHAR *MainPalArray, UCHAR *TargetPalArray)
     roll_rgb_palArray (TargetPalArray);
     disp_setPalette(MainPalArray);
 }
-#endif
 
 /**********************************************************************************/
 
@@ -209,3 +212,66 @@ static void maybeInvertSubPalRollDirection(void)
 	}
 }
 
+void newPalette(void)
+{
+  paletteTypeNum = RANDOM(NUM_PALETTE_TYPES + 1);
+  if (paletteTypeNum >= NUM_PALETTE_TYPES) {
+    /* Beginning special morphing palette */
+    initPalArray(TargetPalArray, RANDOM(NUM_PALETTE_TYPES));
+  } else {
+    /* Fading to specific constant palette */
+    initPalArray(TargetPalArray, paletteTypeNum);
+    FadeCompleteFlag = FALSE; /* Fade-in needed next */
+  }
+}
+
+/* This does not return status because a constantly
+ * morphing palette never finishes morphing.
+ */
+void fadeInAndRotate(void)
+{
+  if (paletteTypeNum == NUM_PALETTE_TYPES) {
+    rolNFadMainPalAry2RndTargNLdDAC(MainPalArray,TargetPalArray);
+  } else if (!FadeCompleteFlag) {
+    rolNFadeMainPalAryToTargNLodDAC(MainPalArray,TargetPalArray);
+  } else {
+    rollMainPalArrayAndLoadDACRegs(MainPalArray);
+  }
+}
+
+void beginFadeOut(int toblack)
+{
+  if (toblack || RANDOM(2) == 0) {
+    fade_dir = 1;
+  } else {
+    fade_dir = 0;
+  }
+  FadeCompleteFlag = 0;
+}
+
+/* Returns 1 when faded completely to white or black */
+int fadeOut(void)
+{
+  if (fade_dir) {
+    rolNFadeBlkMainPalArrayNLoadDAC(MainPalArray);
+  } else {
+    rolNFadeWhtMainPalArrayNLoadDAC(MainPalArray);
+  }
+  return FadeCompleteFlag;
+}
+
+void applyPalette(void)
+{
+  disp_setPalette(MainPalArray);
+}
+
+void initRolNFade(int logo)
+{
+  if (logo) {
+    initPalArray(MainPalArray, RGBW_LIGHTNING_PAL);
+    memcpy(TargetPalArray, MainPalArray, sizeof(TargetPalArray));
+  } else {
+    memset(MainPalArray, 0, sizeof(MainPalArray));
+  }
+  applyPalette();
+}

@@ -41,13 +41,10 @@ static int GO = TRUE;
 static int SKIP = FALSE;
 static int NP = FALSE; /* flag indicates new palette */
 static int LOCK = FALSE; /* flag indicates don't change to next image */
-static UCHAR MainPalArray [256 * 3];
-static UCHAR TargetPalArray [256 * 3];
 static int imageFuncList[NUM_IMAGE_FUNCTIONS];
 static int imageFuncListIndex=0;
 
 /* Prototypes for forward referenced functions */
-static void newpal(void);
 static void printStrArray(char *strArray[]);
 static void makeShuffledList(int *list, int listSize);
 static void generate_image(int imageFuncNum, UCHAR *buf_graf,
@@ -72,9 +69,6 @@ int main (int argc, char *argv[])
   
   disp_init(width, height);
 
-  memset(MainPalArray, 0, sizeof(MainPalArray));
-  disp_setPalette(MainPalArray);
-
 #ifdef EMSCRIPTEN
   emscripten_set_main_loop(mainLoop, 1000000/ROTATION_DELAY, 1);
 #else
@@ -86,19 +80,16 @@ int main (int argc, char *argv[])
 }
 
 static void mainLoop(void) {
-  static int paletteTypeNum = 0;
-  static int fade_dir = TRUE;
   static time_t ltime, mtime;
   static enum {
     STATE_INITIAL,
     STATE_NEXT,
-    STATE_FADEIN,
-    STATE_ROTATE,
-    STATE_FADEOUT_START,
+    STATE_DISPLAY,
     STATE_FADEOUT
   } state = STATE_INITIAL;
 
   disp_processInput();
+
   if (SKIP) {
     if (state == STATE_INITIAL) {
       show_logo = 0;
@@ -108,15 +99,26 @@ static void mainLoop(void) {
     }
   }
 
+  if(NP) {
+    if (!show_logo) newPalette();
+    NP = FALSE;
+  }
+
   switch (state) {
   case STATE_INITIAL:
     makeShuffledList(imageFuncList, NUM_IMAGE_FUNCTIONS);
     if (show_logo != 0) {
-    /* show the logo for a while */
-    redraw();
-    initPalArray(TargetPalArray, RGBW_LIGHTNING_PAL);
-    FadeCompleteFlag = FALSE; /* Fade-in needed next */
-    goto logo_entry;
+      /* Begin showing logo here. Logo continues to be shown
+       * in STATE_DISPLAY, like any other image.
+       */
+      redraw();
+      initRolNFade(1);
+      ltime = time(NULL);
+      mtime = ltime + image_time;
+      state = STATE_DISPLAY;
+      break;
+    } else {
+      initRolNFade(0);
     }
 
     state = STATE_NEXT;
@@ -134,61 +136,38 @@ static void mainLoop(void) {
     redraw();
 
     if (!SKIP) {
-    /* create new palette */
-    paletteTypeNum = RANDOM(NUM_PALETTE_TYPES +1);
-    initPalArray(TargetPalArray, paletteTypeNum);
-    FadeCompleteFlag = FALSE; /* Fade-in needed next */
+      newPalette();
     }
     SKIP = FALSE;
     
-logo_entry:
-    state = STATE_FADEIN;
-    /* Fall through */
-  case STATE_FADEIN:
-
-    /* this is the fade in */
-    if (!FadeCompleteFlag) {
-      if(GO) {
-	rolNFadeMainPalAryToTargNLodDAC(MainPalArray,TargetPalArray);
-      }
-      break;
-    }
-    
     ltime = time(NULL);
     mtime = ltime + image_time;
-    
-    state = STATE_ROTATE;
+    state = STATE_DISPLAY;
     /* Fall through */
-  case STATE_ROTATE:
+  case STATE_DISPLAY:
     /* rotate the palette for a while */
-      if(GO)
-	rollMainPalArrayAndLoadDACRegs(MainPalArray);
-      if(NP) {
-	newpal();
-	NP = FALSE;
-      }
-      ltime=time(NULL);
-      if((ltime>mtime) && !LOCK) {
-	state = STATE_FADEOUT_START; /* Fall through */
-      } else
-	break;
+    if(GO) {
+      fadeInAndRotate();
+    }
 
-  case STATE_FADEOUT_START:
-    FadeCompleteFlag = FALSE;
-    state = STATE_FADEOUT;
-    /* Fall through */
+    ltime=time(NULL);
+    if(ltime > mtime && !LOCK) {
+      /* Transition from logo only fades to black,
+       * like the first transition in Acidwarp 4.10.
+       */
+      beginFadeOut(show_logo);
+      state = STATE_FADEOUT;
+    }
+    break;
+
   case STATE_FADEOUT:
     /* fade out */
-    if (!FadeCompleteFlag) {
-      if(GO) {
-	if (fade_dir)
-	  rolNFadeBlkMainPalArrayNLoadDAC(MainPalArray);
-	else
-	  rolNFadeWhtMainPalArrayNLoadDAC(MainPalArray);
+    if(GO) {
+      if (fadeOut()) {
+        state = STATE_NEXT;
       }
-    } else {
-      state = STATE_NEXT;
     }
+    break;
   }
 #if 0
   /* This was unreachable before */
@@ -201,16 +180,6 @@ logo_entry:
 }
 
 /* ------------------------END MAIN----------------------------------------- */
-
-static void newpal()
-{
-  int paletteTypeNum;
-  
-  paletteTypeNum = RANDOM(NUM_PALETTE_TYPES +1);
-  initPalArray(MainPalArray, paletteTypeNum);
-
-  disp_setPalette(MainPalArray);
-}
 
 void handleinput(enum acidwarp_command cmd)
 {
@@ -266,7 +235,7 @@ void redraw(void) {
     }
   }
   disp_finishUpdate();
-  disp_setPalette(MainPalArray);
+  // FIXME disp_setPalette(MainPalArray);
 }
 
 void handleresize(int newwidth, int newheight)

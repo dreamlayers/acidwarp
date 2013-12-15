@@ -19,12 +19,10 @@ typedef enum {FALSE, TRUE} BOOL;
 #include <stdio.h> /* Needed for NULL * */
 #include <stdlib.h>
 #define RANDOMIZE() (srand((UINT)time( (time_t *)NULL )))
-/* This is BAD.  Some random generators are terrible and the result won't
- * be random: 
- * #define RANDOM(a) (rand()%(a))
- * This is better:
+/* This is skewed due to integer division, but
+ * good enough when a is much smaller than RAND_MAX.
  */
-#define RANDOM(a) (rand() / (RAND_MAX / a + 1))
+#define RANDOM(a) (rand() / (RAND_MAX / (a) + 1))
 
 /* Mini-benchmarking tools. Only one second accuracy */
 time_t __HANDY_BENCH;

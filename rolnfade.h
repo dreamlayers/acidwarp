@@ -1,6 +1,6 @@
-extern UINT FadeCompleteFlag;
+void newPalette(void);
+void fadeInAndRotate(void);
+void beginFadeOut(int toblack);
+int fadeOut(void);
+void initRolNFade(int logo);
 
-void rollMainPalArrayAndLoadDACRegs(UCHAR *MainPalArray);
-void rolNFadeWhtMainPalArrayNLoadDAC(UCHAR *MainPalArray);
-void rolNFadeBlkMainPalArrayNLoadDAC(UCHAR *MainPalArray);
-void rolNFadeMainPalAryToTargNLodDAC(UCHAR *MainPalArray, UCHAR *TargetPalArray);
