@@ -7,13 +7,13 @@
 #ifdef ENABLE_FLOAT
 void generate_image_float(int imageFuncNum, UCHAR *buf_graf,
                           int _xcenter, int _ycenter,
-                          int _xmax, int _ymax,
-                          int colormax, int xsize, int normalize)
+                          int _width, int _height,
+                          int colors, int pitch, int normalize)
 #else
 void generate_image(int imageFuncNum, UCHAR *buf_graf,
                     int xcenter, int ycenter,
-                    int xmax, int ymax,
-                    int colormax, int xsize)
+                    int width, int height,
+                    int colors, int pitch)
 #endif
 {
 
@@ -26,8 +26,8 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
   long color;
 #define _xcenter xcenter
 #define _ycenter ycenter
-#define _xmax xmax
-#define _ymax ymax
+#define _width width
+#define _height height
 #define _x x
 #define _y y
 #define _color color
@@ -38,18 +38,18 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
   double dx, dy;
   double dist, angle;
   double color;
-  double xcenter, ycenter, xmax, ymax;
+  double xcenter, ycenter, width, height;
 
   if (normalize) {
-    xcenter = (double)(_xcenter * 319) / _xmax;
-    ycenter = (double)(_ycenter * 199) / _ymax;
-    xmax = (double)319;
-    ymax = (double)199;
+    xcenter = (double)(_xcenter * 320) / _width;
+    ycenter = (double)(_ycenter * 200) / _height;
+    width = (double)320;
+    height = (double)200;
   } else {
     xcenter = _xcenter;
     ycenter = _ycenter;
-    xmax = _xmax;
-    ymax = _ymax;
+    width = _width;
+    height = _height;
   }
 #endif /* ENABLE_FLOAT */
 
@@ -63,21 +63,21 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
   y1 = RANDOM(40)-20;  y2 = RANDOM(40)-20;
   y3 = RANDOM(40)-20;  y4 = RANDOM(40)-20;
 
-  for (_y = 0; _y <= _ymax; ++_y)
+  for (_y = 0; _y < _height; ++_y)
     {
 #ifdef ENABLE_FLOAT
       if (normalize) {
-        y = (double)(_y * 199) / _ymax;
+        y = (double)(_y * 200) / _height;
       } else {
         y = _y;
       }
 #endif
 
-      for (_x = 0; _x <= _xmax; ++_x)
+      for (_x = 0; _x < _width; ++_x)
         {
 #ifdef ENABLE_FLOAT
           if (normalize) {
-            x = (double)(_x * 319) / _xmax;
+            x = (double)(_x * 320) / _width;
           } else {
             x = _x;
           }
@@ -101,14 +101,14 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
                                                 */
             case 0: /* Rays plus 2D Waves */
               color = angle + lut_sin (dist * 10) / 64 +
-                lut_cos (x * ANGLE_UNIT / xmax * 2) / 32 +
-                lut_cos (y * ANGLE_UNIT / ymax * 2) / 32;
+                lut_cos (x * ANGLE_UNIT / width * 2) / 32 +
+                lut_cos (y * ANGLE_UNIT / height * 2) / 32;
               break;
 
             case 1:        /* Rays plus 2D Waves */
               color = angle + lut_sin (dist * 10) / 16 +
-                lut_cos (x * ANGLE_UNIT / xmax * 2) / 8 +
-                lut_cos (y * ANGLE_UNIT / ymax * 2) / 8;
+                lut_cos (x * ANGLE_UNIT / width * 2) / 8 +
+                lut_cos (y * ANGLE_UNIT / height * 2) / 8;
               break;
 
             case 2:
@@ -128,8 +128,8 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
               break;
 
             case 5:        /* 2D Wave + Spiral */
-              color = lut_cos (x * ANGLE_UNIT / xmax) / 8 +
-                lut_cos (y * ANGLE_UNIT / ymax) / 8 +
+              color = lut_cos (x * ANGLE_UNIT / width) / 8 +
+                lut_cos (y * ANGLE_UNIT / height) / 8 +
                 angle + lut_sin(dist) / 32;
               break;
 
@@ -157,23 +157,30 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
               break;
 
             case 10:        /* 2D Wave */
-              color = lut_cos (x * ANGLE_UNIT / xmax * 2) / 4 +
-                lut_cos (y * ANGLE_UNIT / ymax * 2) / 4;
+              color = lut_cos (x * ANGLE_UNIT / width * 2) / 4 +
+                lut_cos (y * ANGLE_UNIT / height * 2) / 4;
               break;
 
             case 11:        /* 2D Wave */
-              color = lut_cos (x * ANGLE_UNIT / xmax) / 8 +
-                lut_cos (y * ANGLE_UNIT / ymax) / 8;
+              color = lut_cos (x * ANGLE_UNIT / width) / 8 +
+                lut_cos (y * ANGLE_UNIT / height) / 8;
               break;
 
             case 12:        /* Simple Concentric Rings */
               color = dist;
               break;
 
+            /* Good for testing proper wrapping of angle. This was
+             * flawed in original Acidwarp 4.10, resulting in a
+             * double-width stripe going right from the centre.
+             */
             case 13:        /* Simple Rays */
               color = angle;
               break;
 
+            /* Good for testing proper wrapping of negative color.
+             * Errors will show as a dashed seam going right from centre.
+             */
             case 14:        /* Toothed Spiral Sharp */
               color = angle + lut_sin(dist * 8)/32;
               break;
@@ -187,35 +194,35 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
               break;
 
             case 17:
-              color = lut_sin(lut_cos(2 * x * ANGLE_UNIT / xmax)) / (20 + dist)
-                + lut_sin(lut_cos(2 * y * ANGLE_UNIT / ymax)) / (20 + dist);
+              color = lut_sin(lut_cos(2 * x * ANGLE_UNIT / width)) / (20 + dist)
+                + lut_sin(lut_cos(2 * y * ANGLE_UNIT / height)) / (20 + dist);
               break;
 
             case 18:        /* 2D Wave */
-              color = lut_cos(7 * x * ANGLE_UNIT / xmax)/(20 + dist) +
-                lut_cos(7 * y * ANGLE_UNIT / ymax)/(20 + dist);
+              color = lut_cos(7 * x * ANGLE_UNIT / width)/(20 + dist) +
+                lut_cos(7 * y * ANGLE_UNIT / height)/(20 + dist);
               break;
 
             case 19:        /* 2D Wave */
-              color = lut_cos(17 * x * ANGLE_UNIT/xmax)/(20 + dist) +
-                lut_cos(17 * y * ANGLE_UNIT/ymax)/(20 + dist);
+              color = lut_cos(17 * x * ANGLE_UNIT/width)/(20 + dist) +
+                lut_cos(17 * y * ANGLE_UNIT/height)/(20 + dist);
               break;
 
             case 20:        /* 2D Wave Interference */
-              color = lut_cos(17 * x * ANGLE_UNIT / xmax) / 32 +
-                lut_cos(17 * y * ANGLE_UNIT / ymax) / 32 + dist + angle;
+              color = lut_cos(17 * x * ANGLE_UNIT / width) / 32 +
+                lut_cos(17 * y * ANGLE_UNIT / height) / 32 + dist + angle;
               break;
 
             case 21:        /* 2D Wave Interference */
-              color = lut_cos(7 * x * ANGLE_UNIT / xmax) / 32 +
-                lut_cos(7 * y * ANGLE_UNIT / ymax) / 32 + dist;
+              color = lut_cos(7 * x * ANGLE_UNIT / width) / 32 +
+                lut_cos(7 * y * ANGLE_UNIT / height) / 32 + dist;
               break;
 
             case 22:        /* 2D Wave Interference */
-              color = lut_cos( 7 * x * ANGLE_UNIT / xmax) / 32 +
-                lut_cos( 7 * y * ANGLE_UNIT / ymax) / 32 +
-                lut_cos(11 * x * ANGLE_UNIT / xmax) / 32 +
-                lut_cos(11 * y * ANGLE_UNIT / ymax) / 32;
+              color = lut_cos( 7 * x * ANGLE_UNIT / width) / 32 +
+                lut_cos( 7 * y * ANGLE_UNIT / height) / 32 +
+                lut_cos(11 * x * ANGLE_UNIT / width) / 32 +
+                lut_cos(11 * y * ANGLE_UNIT / height) / 32;
               break;
 
             case 23:
@@ -254,8 +261,8 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
               if (y == 0 || x == 0)
                 color = RANDOM (16);
               else
-                color = (  *(buf_graf + (xsize *  _y   ) + (_x-1))
-                         + *(buf_graf + (xsize * (_y-1)) +    _x)) / 2
+                color = (  *(buf_graf + (pitch *  _y   ) + (_x-1))
+                         + *(buf_graf + (pitch * (_y-1)) +    _x)) / 2
                   + RANDOM (16) - 8;
               break;
 
@@ -263,8 +270,8 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
               if (y == 0 || x == 0)
                 color = RANDOM (1024);
               else
-                color = dist/6 + (*(buf_graf + (xsize * _y    ) + (_x-1))
-                               +  *(buf_graf + (xsize * (_y-1)) +    _x)) / 2
+                color = dist/6 + (*(buf_graf + (pitch * _y    ) + (_x-1))
+                               +  *(buf_graf + (pitch * (_y-1)) +    _x)) / 2
                 + RANDOM (16) - 8;
               break;
 
@@ -286,8 +293,8 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
               if (y == 0 || x == 0)
                 color = RANDOM (16);
               else
-                color = (  *(buf_graf + (xsize *  _y   ) + (_x-1))
-                         + *(buf_graf + (xsize * (_y-1)) +  _x   )  ) / 2;
+                color = (  *(buf_graf + (pitch *  _y   ) + (_x-1))
+                         + *(buf_graf + (pitch * (_y-1)) +  _x   )  ) / 2;
 
               color += RANDOM (2) - 1;
 
@@ -299,8 +306,8 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
               if (y == 0 || x == 0)
                 color = RANDOM (16);
               else
-                color = (  *(buf_graf + (xsize *  _y   ) + (_x-1))
-                         + *(buf_graf + (xsize * (_y-1)) +  _x   )  ) / 2;
+                color = (  *(buf_graf + (pitch *  _y   ) + (_x-1))
+                         + *(buf_graf + (pitch * (_y-1)) +  _x   )  ) / 2;
 
               if (color < 100)
                 color += RANDOM (16) - 8;
@@ -317,8 +324,8 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
 
             case 36:
               color = angle + lut_sin (dist * 10) / 16 +
-                lut_cos (x * ANGLE_UNIT / xmax * 2) / 8 +
-                lut_cos (y * ANGLE_UNIT / ymax * 2) / 8;
+                lut_cos (x * ANGLE_UNIT / width * 2) / 8 +
+                lut_cos (y * ANGLE_UNIT / height * 2) / 8;
               dx = x - xcenter;
               dy = (y - ycenter)*2;
               dist  = lut_dist (dx, dy);
@@ -328,15 +335,15 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
 
             case 37:
               color = angle + lut_sin (dist * 10) / 16 +
-                lut_cos (x * ANGLE_UNIT / xmax * 2) / 8 +
-                lut_cos (y * ANGLE_UNIT / ymax * 2) / 8;
+                lut_cos (x * ANGLE_UNIT / width * 2) / 8 +
+                lut_cos (y * ANGLE_UNIT / height * 2) / 8;
               dx = x - xcenter;
               dy = (y - ycenter)*2;
               dist  = lut_dist (dx, dy);
           angle = lut_angle (dx, dy);
           color = (color + angle + lut_sin (dist * 10) / 16 +
-                   lut_cos (x * ANGLE_UNIT / xmax * 2) / 8 +
-                   lut_cos (y * ANGLE_UNIT / ymax * 2) / 8)  /  2;
+                   lut_cos (x * ANGLE_UNIT / width * 2) / 8 +
+                   lut_cos (y * ANGLE_UNIT / height * 2) / 8)  /  2;
           break;
 
             case 38:
@@ -371,7 +378,7 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
               break;
 
             default:
-              color = RANDOM (colormax - 1) + 1;
+              color = RANDOM (colors - 1) + 1;
               break;
             }
 
@@ -381,43 +388,43 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
              I expect MOD to function as it does on my HP-28S.
            */
 
-         /* Final colors need to go from 1 to colormax, because color 0 is
+
+         /* Final colors need to go from 1 to colors, because color 0 is
           * not used. Floating point conversion to the palette is by
           * truncation, not rounding, as if each whole number is a bin
           * (0 for 0 to 1, 1 for 1 to 2 and so on). 1 is added later,
-          * so right here this requires: 0 <= color < colormax
-          *
-          * Integer version of computation seems wrong, resulting in
-          * colors from 0 to colormax-1, but that is tricky because
-          * ANGLE_UNIT is 256, not 255. Maybe using all 256 colours could
-          * help?
+          * so right here this requires: 0 <= color < colors
           */
+          _color = (long)color % (colors-1);
 #ifdef ENABLE_FLOAT
-          _color = (int)color % colormax;
+          /* The -1.0 < color < 0 bin is mapped to the last bin,
+           * meaning right before the 0 <= color < 1 bin in rotation.
+           */
+          if (color < 0)
+            _color += (colors - 2);
 #else
-          color = color % (colormax-1);
+          /* This is like in original Acidwarp 4.10. */
+          if (color < 0)
+            color += (colors - 1);
 #endif
-
-          if (_color < 0)
-            _color += (colormax - 1);
 
           ++_color;
           /* color 0 is never used, so all colors are from 1 through 255 */
 
-          *(buf_graf + (xsize * _y) + _x) = (UCHAR)_color;
+          *(buf_graf + (pitch * _y) + _x) = (UCHAR)_color;
           /* Store the color in the buffer */
         }
-      /* end for (y = 0; y < ymax; ++y)        */
+      /* end for (y = 0; y < height; ++y)        */
     }
-  /* end for (x = 0; x < xmax; ++x)        */
+  /* end for (x = 0; x < width; ++x)        */
 
 #if 0        /* For diagnosis, put palette display line at top of new image */
-  for (_x = 0; _x < _xmax; ++_x)
+  for (_x = 0; _x < _width; ++_x)
     {
       color = (_x <= 255) ? _x : 0;
 
       for (_y = 0; _y < 3; ++_y)
-        *(buf_graf + (xsize * _y) + _x) = (UCHAR)color;
+        *(buf_graf + (pitch * _y) + _x) = (UCHAR)color;
     }
 #endif
 }
@@ -425,8 +432,8 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
 #ifndef ENABLE_FLOAT
 #undef _xcenter
 #undef _ycenter
-#undef _xmax
-#undef _ymax
+#undef _width
+#undef _height
 #undef _x
 #undef _y
 #undef _color

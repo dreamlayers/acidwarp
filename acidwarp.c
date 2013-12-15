@@ -34,7 +34,7 @@ static int ROTATION_DELAY = 30000;
 /* GraphicsContext *physicalscreen; */
 static int show_logo = 1, image_time = 20;
 static int floating_point = 0, normalize = 0;
-static int XMax = 319, YMax = 199;
+static int width = 320, height = 200;
 UCHAR *buf_graf = NULL;
 unsigned int buf_graf_stride = 0;
 static int GO = TRUE;
@@ -52,8 +52,8 @@ static void printStrArray(char *strArray[]);
 static void makeShuffledList(int *list, int listSize);
 static void generate_image(int imageFuncNum, UCHAR *buf_graf,
                            int xcenter, int ycenter,
-                           int xmax, int ymax,
-                           int colormax, int stride);
+                           int width, int height,
+                           int colormax, int pitch);
 static void commandline(int argc, char *argv[]);
 static void mainLoop(void);
 static void redraw(void);
@@ -70,7 +70,7 @@ int main (int argc, char *argv[])
 	  "\n\n*** Press Control-C to exit the program at any time. ***\n");
   printf ("\n\n%s\n", VERSION);
   
-  disp_init(XMax + 1, YMax + 1);
+  disp_init(width, height);
 
   memset(MainPalArray, 0, sizeof(MainPalArray));
   disp_setPalette(MainPalArray);
@@ -252,27 +252,27 @@ void handleinput(enum acidwarp_command cmd)
 void redraw(void) {
   disp_beginUpdate();
   if (show_logo) {
-    writeBitmapImageToArray(buf_graf, NOAHS_FACE, XMax, YMax,
+    writeBitmapImageToArray(buf_graf, NOAHS_FACE, width, height,
                             buf_graf_stride);
   } else {
     if (floating_point) {
       generate_image_float(imageFuncList[imageFuncListIndex],
-                           buf_graf, XMax/2, YMax/2, XMax, YMax,
-                           255, buf_graf_stride, normalize);
+                           buf_graf, width/2, height/2, width, height,
+                           256, buf_graf_stride, normalize);
     } else {
       generate_image(imageFuncList[imageFuncListIndex],
-                     buf_graf, XMax/2, YMax/2, XMax, YMax,
-                     255, buf_graf_stride);
+                     buf_graf, width/2, height/2, width, height,
+                     256, buf_graf_stride);
     }
   }
   disp_finishUpdate();
   disp_setPalette(MainPalArray);
 }
 
-void handleresize(int width, int height)
+void handleresize(int newwidth, int newheight)
 {
-    XMax = width - 1;
-    YMax = height - 1;
+    width = newwidth;
+    height = newheight;
     redraw();
 }
 
