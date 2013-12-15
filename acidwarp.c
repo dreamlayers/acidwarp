@@ -17,7 +17,6 @@
 #include <SDL.h>
 #include <SDL_main.h>
  
-#include "warp_text.c"
 #include "handy.h"
 #include "acidwarp.h"
 #include "lut.h"
@@ -25,6 +24,8 @@
 #include "palinit.h"
 #include "rolnfade.h"
 #include "display.h"
+
+#include "warp_text.c"
  
 #define NUM_IMAGE_FUNCTIONS 40
 #define NOAHS_FACE   0
@@ -33,7 +34,9 @@
 static int ROTATION_DELAY = 30000;
 /* GraphicsContext *physicalscreen; */
 static int show_logo = 1, image_time = 20;
-static int floating_point = 0, normalize = 0;
+static int floating_point = 1, normalize = 1;
+static int disp_flags = 0;
+static int ready_to_draw = 0;
 static int width = 320, height = 200;
 UCHAR *buf_graf = NULL;
 unsigned int buf_graf_stride = 0;
@@ -99,7 +102,7 @@ int main (int argc, char *argv[])
 	  "\n\n*** Press Control-C to exit the program at any time. ***\n");
   printf ("\n\n%s\n", VERSION);
   
-  disp_init(width, height);
+  disp_init(width, height, disp_flags);
 
 #ifdef EMSCRIPTEN
   emscripten_set_main_loop(mainLoop, 1000000/ROTATION_DELAY, 1);
@@ -156,6 +159,7 @@ static void mainLoop(void)
   switch (state) {
   case STATE_INITIAL:
     makeShuffledList(imageFuncList, NUM_IMAGE_FUNCTIONS);
+    ready_to_draw = 1;
     if (show_logo != 0) {
       /* Begin showing logo here. Logo continues to be shown
        * in STATE_DISPLAY, like any other image.
@@ -291,7 +295,7 @@ void handleresize(int newwidth, int newheight)
 {
     width = newwidth;
     height = newheight;
-    redraw();
+    if (ready_to_draw) redraw();
 }
 
 static void commandline(int argc, char *argv[])
@@ -317,12 +321,19 @@ static void commandline(int argc, char *argv[])
       }
       else
       if(!strcmp("-f",argv[argNum])) {
-        floating_point = 1;
+        disp_flags |= DISP_FULLSCREEN;
       }
       else
-      if(!strcmp("-F",argv[argNum])) {
-        floating_point = 1;
-        normalize = 1;
+      if(!strcmp("-k",argv[argNum])) {
+        disp_flags |= DISP_DESKTOP_RES_FS;
+      }
+      else
+      if(!strcmp("-o",argv[argNum])) {
+        floating_point = 0;
+      }
+      else
+      if(!strcmp("-u",argv[argNum])) {
+        normalize = 0;
       }
       else
       if(!strcmp("-d",argv[argNum])) {

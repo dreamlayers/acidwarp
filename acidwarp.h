@@ -4,6 +4,10 @@
 
 #define DIRECTN_CHANGE_PERIOD_IN_TICKS               256
 
+#if !defined(EMSCRIPTEN)
+#define HAVE_FULLSCREEN
+#endif
+
 /* Palette types  */
 #define RGBW_PAL          	0
 #define W_PAL                   1

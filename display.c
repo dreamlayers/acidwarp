@@ -17,10 +17,6 @@
 #define HAVE_PALETTE
 #endif
 
-#if !defined(EMSCRIPTEN)
-#define HAVE_FULLSCREEN
-#endif
-
 static SDL_Surface *surface = NULL, *screen = NULL;
 static int disp_DrawingOnSurface;
 #ifdef HAVE_PALETTE
@@ -28,6 +24,7 @@ static int disp_UsePalette;
 #endif
 #ifdef HAVE_FULLSCREEN
 static int fullscreen = 0;
+static int nativewidth = 0, nativeheight;
 #endif
 static int scaling = 1;
 static int width, height;
@@ -135,23 +132,21 @@ static void disp_toggleFullscreen(void)
   static int winheight;
 
   if (fullscreen) {
-    fullscreen = 0;
     /* If going back to windowed mode, restore window size */
     if (winwidth != 0) {
-      disp_init(winwidth, winheight);
+      disp_init(winwidth, winheight, 0);
       winwidth = 0;
     } else {
-      disp_init(width, height);
+      disp_init(width, height, 0);
     }
   } else {
     /* Save window size for return to windowed mode */
     winwidth = width;
     winheight = height;
-    fullscreen = 1;
     /* disp_init() may select a different size than suggested. It will
      * handle resizing if needed.
      */
-    disp_init(width, height);
+    disp_init(width, height, DISP_FULLSCREEN);
   }
 }
 #endif
@@ -200,7 +195,8 @@ void disp_processInput(void) {
         /* Why are there events when there is no resize? */
         if (width != (event.resize.w / scaling) ||
             height != (event.resize.h / scaling)) {
-          disp_init(event.resize.w / scaling, event.resize.h / scaling);
+          disp_init(event.resize.w / scaling, event.resize.h / scaling,
+                    fullscreen);
         }
         break;
       case SDL_QUIT:
@@ -317,17 +313,9 @@ static void disp_allocateOffscreen(void)
   }
 }
 
-void disp_init(int newwidth, int newheight)
+void disp_init(int newwidth, int newheight, int flags)
 {
-  Uint32 videoflags = SDL_HWSURFACE | SDL_DOUBLEBUF |
-#ifndef HAVE_PALETTE
-                      SDL_ANYFORMAT |
-#endif
-#ifdef HAVE_FULLSCREEN
-                      (fullscreen ? SDL_FULLSCREEN : SDL_RESIZABLE);
-#else
-                      SDL_RESIZABLE;
-#endif
+  Uint32 videoflags;
   static int inited = 0;
   static int nativedepth = 8;
 #ifdef HAVE_FULLSCREEN
@@ -337,6 +325,17 @@ void disp_init(int newwidth, int newheight)
 
   width = newwidth;
   height = newheight;
+  fullscreen = (flags & DISP_FULLSCREEN) ? 1 : 0;
+
+  videoflags = SDL_HWSURFACE | SDL_DOUBLEBUF |
+#ifndef HAVE_PALETTE
+               SDL_ANYFORMAT |
+#endif
+#ifdef HAVE_FULLSCREEN
+               (fullscreen ? SDL_FULLSCREEN : SDL_RESIZABLE);
+#else
+               SDL_RESIZABLE;
+#endif
 
   if (!inited) {
 #ifdef HAVE_FULLSCREEN
@@ -346,7 +345,12 @@ void disp_init(int newwidth, int newheight)
     if (vi != NULL) {
       nativedepth = vi->vfmt->BitsPerPixel;
       if (vi->current_w > 0 && vi->current_h > 0) {
-        desktopaspect = vi->current_w * 1024 / vi->current_h;
+        if (flags & DISP_DESKTOP_RES_FS) {
+          nativewidth = vi->current_w;
+          nativeheight = vi->current_h;
+        } else {
+          desktopaspect = vi->current_w * 1024 / vi->current_h;
+        }
       }
     }
 #endif
@@ -361,7 +365,7 @@ void disp_init(int newwidth, int newheight)
 
   usedepth = nativedepth;
 #ifdef HAVE_FULLSCREEN
-  if (fullscreen) {
+  if (fullscreen && nativewidth == 0) {
     SDL_Rect **modes;
 
 #ifdef HAVE_PALETTE
@@ -397,7 +401,16 @@ void disp_init(int newwidth, int newheight)
   } else
 #endif /* HAVE_FULLSCREEN */
   {
-    /* Not fullscreen, meaning windowed */
+#ifdef HAVE_FULLSCREEN
+    if (fullscreen) {
+      /* This happens when using desktop
+       * resolution for full screen.
+       */
+      width = nativewidth;
+      height = nativeheight;
+    }
+#endif
+
     scaling = 1;
 #ifdef HAVE_PALETTE
     if (usedepth == 8) {
@@ -428,7 +441,7 @@ void disp_init(int newwidth, int newheight)
 
   /* This may be unnecessary if switching between windowed
    * and full screen mode with the same dimensions. */
-  if (inited) handleresize(width, height);
+  handleresize(width, height);
 
   inited = 1;
 }
