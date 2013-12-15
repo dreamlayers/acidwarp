@@ -32,12 +32,6 @@ static int fullscreen = 0;
 static int scaling = 1;
 static int width, height;
 
-static void disp_SDLFatal(const char *msg)
-{
-  fprintf(stderr, "SDL error while %s: %s", msg, SDL_GetError());
-  exit(-1);
-}
-
 void disp_setPalette(unsigned char *palette)
 {
   static SDL_Color sdlPalette[256];
@@ -78,7 +72,7 @@ void disp_beginUpdate(void)
    */
   if (disp_DrawingOnSurface && SDL_MUSTLOCK(surface)) {
     if (SDL_LockSurface(surface) != 0) {
-      disp_SDLFatal("locking surface when starting update");
+      fatalSDLError("locking surface when starting update");
     }
     buf_graf = surface->pixels;
     buf_graf_stride = surface->pitch;
@@ -96,7 +90,7 @@ void disp_finishUpdate(void)
      */
     if (SDL_MUSTLOCK(surface)) {
       if (SDL_LockSurface(surface) != 0) {
-        disp_SDLFatal("locking surface when ending update");
+        fatalSDLError("locking surface when ending update");
         exit(-1);
       }
     }
@@ -299,7 +293,7 @@ static void disp_allocateOffscreen(void)
                                    width*scaling, height*scaling,
                                    8, 0, 0, 0, 0);
 
-    if (!surface) disp_SDLFatal("creating secondary surface");
+    if (!surface) fatalSDLError("creating secondary surface");
   }
 
   if (scaling == 1
@@ -347,14 +341,7 @@ void disp_init(int newwidth, int newheight)
   if (!inited) {
 #ifdef HAVE_FULLSCREEN
     const SDL_VideoInfo *vi;
-#endif
 
-    /* Initialize SDL */
-    if ( SDL_Init(SDL_INIT_VIDEO) < 0 ) {
-      disp_SDLFatal("initializing video subsystem");
-    }
-
-#ifdef HAVE_FULLSCREEN
     vi = SDL_GetVideoInfo();
     if (vi != NULL) {
       nativedepth = vi->vfmt->BitsPerPixel;
@@ -400,7 +387,7 @@ void disp_init(int newwidth, int newheight)
     modes = SDL_ListModes(NULL, videoflags);
 #endif /* !HAVE_PALETTE */
     if (modes == NULL) {
-      disp_SDLFatal("listing full screen modes");
+      fatalSDLError("listing full screen modes");
     } else if (modes == (SDL_Rect **)-1) {
       /* All resolutions ok */
       scaling = 1;
@@ -434,7 +421,7 @@ void disp_init(int newwidth, int newheight)
    */
   screen = SDL_SetVideoMode(width*scaling, height*scaling,
                             usedepth, videoflags);
-  if (!screen) disp_SDLFatal("setting video mode");
+  if (!screen) fatalSDLError("setting video mode");
   /* No need to ever free the screen surface from SDL_SetVideoMode() */
 
   disp_allocateOffscreen();

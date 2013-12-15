@@ -55,8 +55,40 @@ static void commandline(int argc, char *argv[]);
 static void mainLoop(void);
 static void redraw(void);
 
+void fatalSDLError(const char *msg)
+{
+  fprintf(stderr, "SDL error while %s: %s", msg, SDL_GetError());
+  SDL_Quit();
+}
+
+#ifndef EMSCRIPTEN
+static Uint32 timerProc(Uint32 interval, void *param)
+{
+  SDL_CondSignal((SDL_cond *)param);
+  return ROTATION_DELAY / 1000;
+}
+#endif /* !EMSCRIPTEN */
+
 int main (int argc, char *argv[])
 {
+#ifndef EMSCRIPTEN
+  SDL_cond *cond;
+  SDL_mutex *mutex;
+#endif /* !EMSCRIPTEN */
+
+  /* Initialize SDL */
+  if ( SDL_Init(SDL_INIT_VIDEO
+#ifndef EMSCRIPTEN
+                | SDL_INIT_TIMER
+#endif
+                ) < 0 ) {
+    /* Not sure if it's safe to call SDL_Quit() here
+     * via fatalSDLError().
+     */
+    fprintf(stderr, "Failed to initialize SDL: %s\n", SDL_GetError());
+    return -1;
+  }
+
   RANDOMIZE();
   
   /* Default options */
@@ -71,15 +103,32 @@ int main (int argc, char *argv[])
 
 #ifdef EMSCRIPTEN
   emscripten_set_main_loop(mainLoop, 1000000/ROTATION_DELAY, 1);
-#else
+#else /* !EMSCRIPTEN */
+  mutex = SDL_CreateMutex();
+  if (mutex == NULL) {
+    fatalSDLError("creating mutex");
+  }
+  cond = SDL_CreateCond();
+  if (cond == NULL) {
+    fatalSDLError("creating condition variable");
+  }
+  if (SDL_AddTimer(ROTATION_DELAY / 1000, timerProc, cond) == NULL) {
+    fatalSDLError("adding timer");
+  }
   while(1) {
     mainLoop();
-    usleep(ROTATION_DELAY);
+    if (SDL_LockMutex(mutex) != 0) {
+      fatalSDLError("locking mutex");
+    }
+    if (SDL_CondWait(cond, mutex) != 0) {
+      fatalSDLError("waiting on condition");
+    }
   }
-#endif
+#endif /* !EMSCRIPTEN */
 }
 
-static void mainLoop(void) {
+static void mainLoop(void)
+{
   static time_t ltime, mtime;
   static enum {
     STATE_INITIAL,
