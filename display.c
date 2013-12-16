@@ -25,6 +25,8 @@ static int disp_UsePalette;
 #ifdef HAVE_FULLSCREEN
 static int fullscreen = 0;
 static int nativewidth = 0, nativeheight;
+static int winwidth = 0;
+static int winheight;
 #endif
 static int scaling = 1;
 static int width, height;
@@ -128,9 +130,6 @@ void disp_finishUpdate(void)
 #ifdef HAVE_FULLSCREEN
 static void disp_toggleFullscreen(void)
 {
-  static int winwidth = 0;
-  static int winheight;
-
   if (fullscreen) {
     /* If going back to windowed mode, restore window size */
     if (winwidth != 0) {
@@ -348,6 +347,11 @@ void disp_init(int newwidth, int newheight, int flags)
         if (flags & DISP_DESKTOP_RES_FS) {
           nativewidth = vi->current_w;
           nativeheight = vi->current_h;
+          if (flags & DISP_FULLSCREEN) {
+            /* Save size, which is for windowed mode */
+            winwidth = newwidth;
+            winheight = newheight;
+          }
         } else {
           desktopaspect = vi->current_w * 1024 / vi->current_h;
         }
@@ -408,6 +412,9 @@ void disp_init(int newwidth, int newheight, int flags)
        */
       width = nativewidth;
       height = nativeheight;
+#ifdef HAVE_PALETTE
+      usedepth = 8;
+#endif
     }
 #endif
 
