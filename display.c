@@ -184,7 +184,9 @@ void disp_processInput(void) {
 #ifdef HAVE_FULLSCREEN
       /* SDL full screen switching has no useful effect with Emscripten */
       case SDL_MOUSEBUTTONDOWN:
-        disp_toggleFullscreen();
+        if (event.button.button == SDL_BUTTON_LEFT) {
+          disp_toggleFullscreen();
+        }
         break;
 #endif
       case SDL_KEYDOWN:
