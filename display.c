@@ -197,7 +197,12 @@ void disp_processInput(void) {
         if (width != (event.resize.w / scaling) ||
             height != (event.resize.h / scaling)) {
           disp_init(event.resize.w / scaling, event.resize.h / scaling,
-                    fullscreen);
+#ifdef HAVE_FULLSCREEN
+                    fullscreen
+#else
+                    0
+#endif
+                    );
         }
         break;
       case SDL_QUIT:
@@ -326,7 +331,9 @@ void disp_init(int newwidth, int newheight, int flags)
 
   width = newwidth;
   height = newheight;
+#ifdef HAVE_FULLSCREEN
   fullscreen = (flags & DISP_FULLSCREEN) ? 1 : 0;
+#endif
 
   videoflags = SDL_HWSURFACE | SDL_DOUBLEBUF |
 #ifndef HAVE_PALETTE
