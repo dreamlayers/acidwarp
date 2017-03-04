@@ -4,7 +4,6 @@ OBJECTS := $(SOURCES:%.c=%.o)
 
 PLATFORM := $(shell uname -o)
 ifeq ($(PLATFORM),Emscripten)
-
 CC = emcc
 EXESUFFIX = .html
 LDFLAGS = $(CFLAGS) --pre-js pre.js
@@ -52,4 +51,5 @@ acid_ico.c: acidwarp.rgb
 	xxd -i $< > $@
 
 clean:
-	$(RM) *.o $(TARGET) acidwarp.ico acidwarp.rgb acid_ico.c
+	$(RM) *.o $(TARGET) acidwarp.ico acidwarp.rgb acid_ico.c \
+          acidwarp.html.mem acidwarp.js
