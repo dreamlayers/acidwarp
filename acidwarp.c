@@ -30,6 +30,8 @@
 #define NUM_IMAGE_FUNCTIONS 40
 #define NOAHS_FACE   0
 
+extern unsigned char acidwarp_rgb[];
+
 /* there are WAY too many global things here... */
 static int ROTATION_DELAY = 30000;
 /* GraphicsContext *physicalscreen; */
@@ -74,6 +76,7 @@ static Uint32 timerProc(Uint32 interval, void *param)
 
 int main (int argc, char *argv[])
 {
+  SDL_Surface *iconsurface;
 #ifndef EMSCRIPTEN
   SDL_cond *cond;
   SDL_mutex *mutex;
@@ -91,6 +94,15 @@ int main (int argc, char *argv[])
     fprintf(stderr, "Failed to initialize SDL: %s\n", SDL_GetError());
     return -1;
   }
+
+  iconsurface =
+    SDL_CreateRGBSurfaceFrom(acidwarp_rgb, 64, 64, 24, 64*3,
+                             0x0000ff, 0x00ff00, 0xff0000, 0
+    /* Big endian may need:  0xff0000, 0x00ff00, 0x0000ff, 0 */
+                             );
+  /* Must be called before SDL_SetVideoMode() */
+  SDL_WM_SetIcon(iconsurface, NULL);
+  SDL_FreeSurface(iconsurface);
 
   RANDOMIZE();
   

@@ -1,5 +1,5 @@
 CFLAGS := -g -O2 -Wall -Wmissing-prototypes
-SOURCES := acidwarp.c bit_map.c lut.c palinit.c rolnfade.c display.c img_float.c
+SOURCES := acidwarp.c bit_map.c lut.c palinit.c rolnfade.c display.c img_float.c acid_ico.c
 OBJECTS := $(SOURCES:%.c=%.o)
 
 PLATFORM := $(shell uname -o)
@@ -44,6 +44,12 @@ acidwarp.ico: acidwarp.png
 acid_res.o: acid_res.rc acidwarp.ico
 	windres $< $@
 endif
+# Using ImageMagick to nearest neighbour resize icon for SDL.
+# Without it, you can manually do this in another program.
+acidwarp.rgb: acidwarp.png
+	convert $< -sample 64x64 $@
+acid_ico.c: acidwarp.rgb
+	xxd -i $< > $@
 
 clean:
-	$(RM) *.o $(TARGET) acidwarp.ico
+	$(RM) *.o $(TARGET) acidwarp.ico acidwarp.rgb acid_ico.c
