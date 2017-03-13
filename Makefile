@@ -2,7 +2,8 @@ CFLAGS := -g -O2 -Wall -Wmissing-prototypes
 SOURCES := acidwarp.c bit_map.c lut.c palinit.c rolnfade.c display.c img_float.c acid_ico.c
 OBJECTS := $(SOURCES:%.c=%.o)
 
-PLATFORM := $(shell uname -o)
+PLATFORM := $(shell uname)
+
 ifeq ($(PLATFORM),Emscripten)
 CC = emcc
 EXESUFFIX = .html
