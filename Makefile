@@ -46,8 +46,15 @@ acid_res.o: acid_res.rc acidwarp.ico
 endif
 # Using ImageMagick to nearest neighbour resize icon for SDL.
 # Without it, you can manually do this in another program.
+CONVERTEXISTS := $(shell command -v convert 2> /dev/null)
+ifdef CONVERTEXISTS
 acidwarp.rgb: acidwarp.png
 	convert $< -sample 64x64 $@
+else
+acidwarp.rgb: acidwarp.png
+	cp $< $@
+$(warning 'convert' command not found. Install ImageMagick to resize icon.)
+endif
 acid_ico.c: acidwarp.rgb
 	xxd -i $< > $@
 
