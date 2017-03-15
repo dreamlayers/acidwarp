@@ -1,5 +1,5 @@
 CFLAGS := -g -O2 -Wall -Wmissing-prototypes
-SOURCES := acidwarp.c bit_map.c lut.c palinit.c rolnfade.c display.c img_float.c acid_ico.c
+SOURCES := acidwarp.c bit_map.c lut.c palinit.c rolnfade.c display.c img_float.c
 OBJECTS := $(SOURCES:%.c=%.o)
 
 PLATFORM := $(shell uname)
@@ -10,6 +10,13 @@ EXESUFFIX = .html
 LDFLAGS = $(CFLAGS) --pre-js pre.js
 
 else
+
+CONVERTEXISTS := $(shell command -v convert 2> /dev/null)
+ifdef CONVERTEXISTS
+CFLAGS += -DADDICON
+SOURCES += acid_ico.c
+OBJECTS += acid_ico.o
+endif
 
 CFLAGS += $(shell sdl-config --cflags)
 LIBS = $(shell sdl-config --libs) -lm
@@ -46,15 +53,8 @@ acid_res.o: acid_res.rc acidwarp.ico
 endif
 # Using ImageMagick to nearest neighbour resize icon for SDL.
 # Without it, you can manually do this in another program.
-CONVERTEXISTS := $(shell command -v convert 2> /dev/null)
-ifdef CONVERTEXISTS
 acidwarp.rgb: acidwarp.png
 	convert $< -sample 64x64 $@
-else
-acidwarp.rgb: acidwarp.png
-	cp $< $@
-$(warning 'convert' command not found. Install ImageMagick to resize icon.)
-endif
 acid_ico.c: acidwarp.rgb
 	xxd -i $< > $@
 
