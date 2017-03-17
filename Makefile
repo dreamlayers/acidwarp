@@ -1,5 +1,5 @@
 CFLAGS := -g -O2 -Wall -Wmissing-prototypes
-SOURCES := acidwarp.c bit_map.c lut.c palinit.c rolnfade.c display.c img_float.c acid_ico.c
+SOURCES := acidwarp.c bit_map.c lut.c palinit.c rolnfade.c display.c img_float.c
 OBJECTS := $(SOURCES:%.c=%.o)
 
 PLATFORM := $(shell uname)
@@ -10,6 +10,13 @@ EXESUFFIX = .html
 LDFLAGS = $(CFLAGS) --pre-js pre.js
 
 else
+
+CONVERTEXISTS := $(shell command -v convert 2> /dev/null)
+ifdef CONVERTEXISTS
+CFLAGS += -DADDICON
+SOURCES += acid_ico.c
+OBJECTS += acid_ico.o
+endif
 
 CFLAGS += $(shell sdl-config --cflags)
 LIBS = $(shell sdl-config --libs) -lm

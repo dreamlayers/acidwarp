@@ -32,7 +32,9 @@
 #define NUM_IMAGE_FUNCTIONS 40
 #define NOAHS_FACE   0
 
+#ifdef ADDICON
 extern unsigned char acidwarp_rgb[];
+#endif
 
 /* there are WAY too many global things here... */
 static int ROTATION_DELAY = 30000;
@@ -78,7 +80,9 @@ static Uint32 timerProc(Uint32 interval, void *param)
 
 int main (int argc, char *argv[])
 {
+#ifdef ADDICON
   SDL_Surface *iconsurface;
+#endif
 #ifndef EMSCRIPTEN
   SDL_cond *cond;
   SDL_mutex *mutex;
@@ -97,6 +101,7 @@ int main (int argc, char *argv[])
     return -1;
   }
 
+#ifdef ADDICON
   iconsurface =
     SDL_CreateRGBSurfaceFrom(acidwarp_rgb, 64, 64, 24, 64*3,
                              0x0000ff, 0x00ff00, 0xff0000, 0
@@ -105,6 +110,7 @@ int main (int argc, char *argv[])
   /* Must be called before SDL_SetVideoMode() */
   SDL_WM_SetIcon(iconsurface, NULL);
   SDL_FreeSurface(iconsurface);
+#endif
 
   RANDOMIZE();
   
