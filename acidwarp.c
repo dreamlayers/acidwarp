@@ -135,7 +135,7 @@ int main (int argc, char *argv[])
   if (cond == NULL) {
     fatalSDLError("creating condition variable");
   }
-  if (SDL_AddTimer(ROTATION_DELAY / 1000, timerProc, cond) == NULL) {
+  if (SDL_AddTimer(ROTATION_DELAY / 1000, timerProc, cond) == 0) {
     fatalSDLError("adding timer");
   }
   while(1) {
