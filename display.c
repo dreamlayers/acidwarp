@@ -392,11 +392,13 @@ void disp_init(int newwidth, int newheight, int flags)
 {
   Uint32 videoflags;
   static int inited = 0;
+#ifdef HAVE_PALETTE
   static int nativedepth = 8;
+  int usedepth;
+#endif
 #if defined(HAVE_FULLSCREEN) && !SDL_VERSION_ATLEAST(2,0,0)
   static int desktopaspect = 0;
 #endif
-  int usedepth;
 
   width = newwidth;
   height = newheight;
@@ -437,7 +439,9 @@ void disp_init(int newwidth, int newheight, int flags)
 
     vi = SDL_GetVideoInfo();
     if (vi != NULL) {
+#ifdef HAVE_PALETTE
       nativedepth = vi->vfmt->BitsPerPixel;
+#endif
       if (vi->current_w > 0 && vi->current_h > 0) {
         if (flags & DISP_DESKTOP_RES_FS) {
           nativewidth = vi->current_w;
@@ -470,7 +474,9 @@ void disp_init(int newwidth, int newheight, int flags)
   SDL_ShowCursor(!fullscreen);
 #endif
 
+#ifdef HAVE_PALETTE
   usedepth = nativedepth;
+#endif
 #if defined(HAVE_FULLSCREEN) && !SDL_VERSION_ATLEAST(2,0,0)
   if (fullscreen && nativewidth == 0) {
     SDL_Rect **modes;
@@ -549,7 +555,12 @@ void disp_init(int newwidth, int newheight, int flags)
   screen = SDL_GetWindowSurface(window);
 #else
   screen = SDL_SetVideoMode(width*scaling, height*scaling,
-                            usedepth, videoflags);
+#ifdef HAVE_PALETTE
+                            usedepth,
+#else
+                            0,
+#endif
+                            videoflags);
 #endif
   if (!screen) fatalSDLError("setting video mode");
   /* No need to ever free the screen surface from SDL_SetVideoMode() */
