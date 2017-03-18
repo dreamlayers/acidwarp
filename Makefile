@@ -2,7 +2,12 @@ CFLAGS := -g -O2 -Wall -Wmissing-prototypes
 SOURCES := acidwarp.c bit_map.c lut.c palinit.c rolnfade.c display.c img_float.c
 OBJECTS := $(SOURCES:%.c=%.o)
 
+ifdef EMMAKEN_COMPILER
+# Using emmake make to build using Emscripten
+PLATFORM := Emscripten
+else
 PLATFORM := $(shell uname)
+endif
 
 ifeq ($(PLATFORM),Emscripten)
 CC = emcc
