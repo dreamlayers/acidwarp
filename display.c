@@ -13,10 +13,13 @@
 #include "acidwarp.h"
 #include "display.h"
 
-#if !defined(WIN32)
+#if !defined(WIN32) && !SDL_VERSION_ATLEAST(2,0,0)
 #define HAVE_PALETTE
 #endif
 
+#if SDL_VERSION_ATLEAST(2,0,0)
+static SDL_Window *window;
+#endif
 static SDL_Surface *surface = NULL, *screen = NULL;
 static int disp_DrawingOnSurface;
 #ifdef HAVE_PALETTE
@@ -34,6 +37,11 @@ static int width, height;
 void disp_setPalette(unsigned char *palette)
 {
   static SDL_Color sdlPalette[256];
+#if SDL_VERSION_ATLEAST(2,0,0)
+  static SDL_Palette sdlColors = {
+    sizeof(sdlPalette) / sizeof(sdlPalette[0]), sdlPalette
+  };
+#endif
   int i;
   for(i=0;i<256;i++) {
     sdlPalette[i].r = palette[i*3+0] << 2;
@@ -56,11 +64,19 @@ void disp_setPalette(unsigned char *palette)
     /* Update colours in software surface, blit it to the screen
      * with updated colours, and then show it on the screen.
      */
+#if SDL_VERSION_ATLEAST(2,0,0)
+    SDL_SetSurfacePalette(surface, &sdlColors);
+#else
     SDL_SetColors(surface, sdlPalette, 0, 256);
+#endif
     if (surface != screen) {
       SDL_BlitSurface(surface, NULL, screen, NULL);
     }
+#if SDL_VERSION_ATLEAST(2,0,0)
+    SDL_UpdateWindowSurface(window);
+#else
     SDL_Flip(screen);
+#endif
   }
 }
 
@@ -124,7 +140,11 @@ void disp_finishUpdate(void)
   if (surface != screen) {
     SDL_BlitSurface(surface, NULL, screen, NULL);
   }
+#if SDL_VERSION_ATLEAST(2,0,0)
+  SDL_UpdateWindowSurface(window);
+#else
   SDL_Flip(screen);
+#endif
 }
 
 #ifdef HAVE_FULLSCREEN
@@ -150,7 +170,14 @@ static void disp_toggleFullscreen(void)
 }
 #endif
 
-static void disp_processKey(SDLKey key)
+static void disp_processKey(
+#if SDL_VERSION_ATLEAST(2,0,0)
+                            SDL_Keycode
+#else
+                            SDLKey
+#endif
+                            key
+)
 {
   switch (key) {
     case SDLK_UP: handleinput(CMD_PAL_FASTER); break;
@@ -169,6 +196,7 @@ void disp_processInput(void) {
 
   while ( SDL_PollEvent(&event) > 0 ) {
     switch (event.type) {
+#if !SDL_VERSION_ATLEAST(2,0,0)
       case SDL_VIDEOEXPOSE:
         /* Redraw parts that were overwritten. (This is unlikely with
          * modern compositing window managers */
@@ -181,6 +209,7 @@ void disp_processInput(void) {
           disp_finishUpdate();
         }
         break;
+#endif
 #ifdef HAVE_FULLSCREEN
       /* SDL full screen switching has no useful effect with Emscripten */
       case SDL_MOUSEBUTTONDOWN:
@@ -192,6 +221,7 @@ void disp_processInput(void) {
       case SDL_KEYDOWN:
         disp_processKey(event.key.keysym.sym);
         break;
+#if !SDL_VERSION_ATLEAST(2,0,0)
       case SDL_VIDEORESIZE:
         /* Why are there events when there is no resize? */
         if (width != (event.resize.w / scaling) ||
@@ -205,6 +235,7 @@ void disp_processInput(void) {
                     );
         }
         break;
+#endif
       case SDL_QUIT:
         handleinput(CMD_QUIT);
         break;
@@ -335,6 +366,14 @@ void disp_init(int newwidth, int newheight, int flags)
   fullscreen = (flags & DISP_FULLSCREEN) ? 1 : 0;
 #endif
 
+#if SDL_VERSION_ATLEAST(2,0,0)
+  videoflags =
+#ifdef HAVE_FULLSCREEN
+               (fullscreen ? SDL_WINDOW_FULLSCREEN : SDL_WINDOW_RESIZABLE);
+#else
+               SDL_WINDOW_RESIZABLE;
+#endif
+#else /* !SDL_VERSION_ATLEAST(2,0,0) */
   videoflags = SDL_HWSURFACE | SDL_DOUBLEBUF |
 #ifndef HAVE_PALETTE
                SDL_ANYFORMAT |
@@ -343,6 +382,7 @@ void disp_init(int newwidth, int newheight, int flags)
                (fullscreen ? SDL_FULLSCREEN : SDL_RESIZABLE);
 #else
                SDL_RESIZABLE;
+#endif
 #endif
 
   if (!inited) {
@@ -367,8 +407,9 @@ void disp_init(int newwidth, int newheight, int flags)
       }
     }
 #endif
-
+#if !SDL_VERSION_ATLEAST(2,0,0)
     SDL_WM_SetCaption("Acidwarp","acidwarp");
+#endif
   }
 
 #ifdef HAVE_FULLSCREEN
@@ -448,8 +489,15 @@ void disp_init(int newwidth, int newheight, int flags)
   /* The screen is a destination for SDL_BlitSurface() copies.
    * Nothing is ever directly drawn here, except with Emscripten.
    */
+#if SDL_VERSION_ATLEAST(2,0,0)
+  window = SDL_CreateWindow("Acidwarp",
+                            SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+                            width*scaling, height*scaling, videoflags);
+  screen = SDL_GetWindowSurface(window);
+#else
   screen = SDL_SetVideoMode(width*scaling, height*scaling,
                             usedepth, videoflags);
+#endif
   if (!screen) fatalSDLError("setting video mode");
   /* No need to ever free the screen surface from SDL_SetVideoMode() */
 

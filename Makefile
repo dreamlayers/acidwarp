@@ -11,21 +11,22 @@ endif
 
 ifeq ($(PLATFORM),Emscripten)
 CC = emcc
+CFLAGS += -s USE_SDL=2
 EXESUFFIX = .html
-LDFLAGS = $(CFLAGS) --pre-js pre.js
+LDFLAGS = $(CFLAGS)
 
 else
 
 CONVERTEXISTS := $(shell command -v convert > /dev/null 2>&1 && \
                    convert -version 2> /dev/null | grep ImageMagick)
 ifdef CONVERTEXISTS
-CFLAGS += -DADDICON
-SOURCES += acid_ico.c
-OBJECTS += acid_ico.o
+#CFLAGS += -DADDICON
+#SOURCES += acid_ico.c
+#OBJECTS += acid_ico.o
 endif
 
-CFLAGS += $(shell sdl-config --cflags)
-LIBS = $(shell sdl-config --libs) -lm
+CFLAGS += $(shell sdl2-config --cflags)
+LIBS = $(shell sdl2-config --libs) -lm
 
 ifeq ($(PLATFORM),Cygwin)
 EXESUFFIX = .exe
