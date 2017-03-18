@@ -29,8 +29,10 @@ static int disp_UsePalette;
 #ifdef HAVE_FULLSCREEN
 static int fullscreen = 0;
 static int nativewidth = 0, nativeheight;
+#if !SDL_VERSION_ATLEAST(2,0,0)
 static int winwidth = 0;
 static int winheight;
+#endif
 #endif
 static int scaling = 1;
 static int width, height;
@@ -150,6 +152,15 @@ void disp_finishUpdate(void)
 #ifdef HAVE_FULLSCREEN
 static void disp_toggleFullscreen(void)
 {
+#if SDL_VERSION_ATLEAST(2,0,0)
+  if (fullscreen) {
+    SDL_SetWindowFullscreen(window, 0);
+    fullscreen = FALSE;
+  } else {
+    SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
+    fullscreen = TRUE;
+  }
+#else
   if (fullscreen) {
     /* If going back to windowed mode, restore window size */
     if (winwidth != 0) {
@@ -167,6 +178,7 @@ static void disp_toggleFullscreen(void)
      */
     disp_init(width, height, DISP_FULLSCREEN);
   }
+#endif
 }
 #endif
 
@@ -264,7 +276,7 @@ void disp_processInput(void) {
   }
 }
 
-#ifdef HAVE_FULLSCREEN
+#if defined(HAVE_FULLSCREEN) && !SDL_VERSION_ATLEAST(2,0,0)
 /* Function for finding the best SDL full screen mode for filling the screen.
  *
  * Inputs:
@@ -375,7 +387,7 @@ void disp_init(int newwidth, int newheight, int flags)
   Uint32 videoflags;
   static int inited = 0;
   static int nativedepth = 8;
-#ifdef HAVE_FULLSCREEN
+#if defined(HAVE_FULLSCREEN) && !SDL_VERSION_ATLEAST(2,0,0)
   static int desktopaspect = 0;
 #endif
   int usedepth;
@@ -414,7 +426,7 @@ void disp_init(int newwidth, int newheight, int flags)
 #endif
 
   if (!inited) {
-#ifdef HAVE_FULLSCREEN
+#if defined(HAVE_FULLSCREEN) && !SDL_VERSION_ATLEAST(2,0,0)
     const SDL_VideoInfo *vi;
 
     vi = SDL_GetVideoInfo();
@@ -453,7 +465,7 @@ void disp_init(int newwidth, int newheight, int flags)
 #endif
 
   usedepth = nativedepth;
-#ifdef HAVE_FULLSCREEN
+#if defined(HAVE_FULLSCREEN) && !SDL_VERSION_ATLEAST(2,0,0)
   if (fullscreen && nativewidth == 0) {
     SDL_Rect **modes;
 

@@ -5,7 +5,7 @@
 #define DIRECTN_CHANGE_PERIOD_IN_TICKS               256
 
 #if !defined(EMSCRIPTEN)
-//#define HAVE_FULLSCREEN
+#define HAVE_FULLSCREEN
 #endif
 
 /* Palette types  */
