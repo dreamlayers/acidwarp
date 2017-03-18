@@ -203,6 +203,24 @@ static void disp_processKey(
   }
 }
 
+static void display_redraw(void)
+{
+  /* Redraw parts that were overwritten. (This is unlikely with
+   * modern compositing window managers */
+  if (surface != screen) {
+    SDL_BlitSurface(surface, NULL, screen, NULL);
+#if SDL_VERSION_ATLEAST(2,0,0)
+    SDL_UpdateWindowSurface(window);
+#else
+    SDL_Flip(screen);
+#endif
+  } else {
+    /* Copy from buf_graf to screen */
+    disp_beginUpdate();
+    disp_finishUpdate();
+  }
+}
+
 void disp_processInput(void) {
   SDL_Event event;
 
@@ -210,16 +228,7 @@ void disp_processInput(void) {
     switch (event.type) {
 #if !SDL_VERSION_ATLEAST(2,0,0)
       case SDL_VIDEOEXPOSE:
-        /* Redraw parts that were overwritten. (This is unlikely with
-         * modern compositing window managers */
-        if (surface != screen) {
-          SDL_BlitSurface(surface, NULL, screen, NULL);
-          SDL_Flip(screen);
-        } else {
-          /* Copy from buf_graf to screen */
-          disp_beginUpdate();
-          disp_finishUpdate();
-        }
+        display_redraw();
         break;
 #endif
 #ifdef HAVE_FULLSCREEN
@@ -254,6 +263,9 @@ void disp_processInput(void) {
 #endif
                     );
           }
+          break;
+        case SDL_WINDOWEVENT_EXPOSED:
+          display_redraw();
           break;
         }
         break;
