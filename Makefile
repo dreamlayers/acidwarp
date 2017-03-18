@@ -1,6 +1,7 @@
 CFLAGS := -g -O2 -Wall -Wmissing-prototypes
 SOURCES := acidwarp.c bit_map.c lut.c palinit.c rolnfade.c display.c img_float.c
 OBJECTS := $(SOURCES:%.c=%.o)
+SDL := 1
 
 ifdef EMMAKEN_COMPILER
 # Using emmake make to build using Emscripten
@@ -9,12 +10,22 @@ else
 PLATFORM := $(shell uname)
 endif
 
+ifeq ($(SDL),2)
+SDL_CONFIG := sdl2-config
+else
+SDL_CONFIG := sdl-config
+endif
+
 ifeq ($(PLATFORM),Emscripten)
 CC = emcc
+ifeq ($(SDL),2)
 CFLAGS += -s USE_SDL=2
+endif
 EXESUFFIX = .html
-LDFLAGS = $(CFLAGS)
-
+LDFLAGS := $(CFLAGS)
+ifeq ($(SDL),1)
+LDFLAGS += --pre-js pre.js
+endif
 else
 
 CONVERTEXISTS := $(shell command -v convert > /dev/null 2>&1 && \
@@ -25,8 +36,8 @@ SOURCES += acid_ico.c
 OBJECTS += acid_ico.o
 endif
 
-CFLAGS += $(shell sdl2-config --cflags)
-LIBS = $(shell sdl2-config --libs) -lm
+CFLAGS += $(shell $(SDL_CONFIG) --cflags)
+LIBS = $(shell $(SDL_CONFIG) --libs) -lm
 
 ifeq ($(PLATFORM),Cygwin)
 EXESUFFIX = .exe

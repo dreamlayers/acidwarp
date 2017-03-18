@@ -388,7 +388,9 @@ static void disp_allocateOffscreen(void)
 
     if (!surface) fatalSDLError("creating secondary surface");
 
+#if SDL_VERSION_ATLEAST(2,0,0)
     SDL_SetSurfacePalette(surface, sdlPalette);
+#endif
   }
 
   if (scaling == 1
