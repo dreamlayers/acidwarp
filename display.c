@@ -337,6 +337,30 @@ static void disp_findBestMode(SDL_Rect ** modes,
 }
 #endif /* HAVE_FULLSCREEN */
 
+#ifdef ADDICON
+extern unsigned char acidwarp_rgb[];
+/* For SDL 1 call before SDL_SetWindowMode().
+ * For SDL 2 call after window is created.
+ */
+static void disp_setIcon(void)
+{
+  SDL_Surface *iconsurface =
+    SDL_CreateRGBSurfaceFrom(acidwarp_rgb, 64, 64, 24, 64*3,
+                             0x0000ff, 0x00ff00, 0xff0000, 0
+    /* Big endian may need:  0xff0000, 0x00ff00, 0x0000ff, 0 */
+                             );
+  if (iconsurface == NULL) fatalSDLError("creating icon surface");
+
+#if SDL_VERSION_ATLEAST(2,0,0)
+  SDL_SetWindowIcon(window, iconsurface);
+#else
+  /* Must be called before SDL_SetVideoMode() */
+  SDL_WM_SetIcon(iconsurface, NULL);
+#endif
+  SDL_FreeSurface(iconsurface);
+}
+#endif
+
 static void disp_allocateOffscreen(void)
 {
   /* If there was a separate graphics buffer, free it. */
@@ -466,6 +490,10 @@ void disp_init(int newwidth, int newheight, int flags)
     }
 #else /* !SDL_VERSION_ATLEAST(2,0,0) */
     SDL_WM_SetCaption("Acidwarp","acidwarp");
+#ifdef ADDICON
+    /* Must be called before SDL_SetVideoMode() */
+    disp_setIcon();
+#endif
 #endif
   }
 
@@ -552,6 +580,10 @@ void disp_init(int newwidth, int newheight, int flags)
   window = SDL_CreateWindow("Acidwarp",
                             SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                             width*scaling, height*scaling, videoflags);
+#ifdef ADDICON
+  /* Must be called after window is created */
+  disp_setIcon();
+#endif
   screen = SDL_GetWindowSurface(window);
 #else
   screen = SDL_SetVideoMode(width*scaling, height*scaling,

@@ -20,9 +20,9 @@ else
 CONVERTEXISTS := $(shell command -v convert > /dev/null 2>&1 && \
                    convert -version 2> /dev/null | grep ImageMagick)
 ifdef CONVERTEXISTS
-#CFLAGS += -DADDICON
-#SOURCES += acid_ico.c
-#OBJECTS += acid_ico.o
+CFLAGS += -DADDICON
+SOURCES += acid_ico.c
+OBJECTS += acid_ico.o
 endif
 
 CFLAGS += $(shell sdl2-config --cflags)
