@@ -29,10 +29,8 @@ static int disp_UsePalette;
 #ifdef HAVE_FULLSCREEN
 static int fullscreen = 0;
 static int nativewidth = 0, nativeheight;
-#if !SDL_VERSION_ATLEAST(2,0,0)
 static int winwidth = 0;
 static int winheight;
-#endif
 #endif
 static int scaling = 1;
 static int width, height;
@@ -157,6 +155,8 @@ static void disp_toggleFullscreen(void)
     SDL_SetWindowFullscreen(window, 0);
     fullscreen = FALSE;
   } else {
+    winwidth = width;
+    winheight = height;
     SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
     fullscreen = TRUE;
   }
@@ -237,6 +237,12 @@ void disp_processInput(void) {
       case SDL_WINDOWEVENT:
         switch (event.window.event) {
         case SDL_WINDOWEVENT_RESIZED:
+          /* If full screen resolution is at least twice as large as
+           * previous window, then use 2x scaling, else no scaling.
+           */
+          scaling = fullscreen ?
+                    ((winwidth != 0 &&
+                      event.window.data1 >= 2 * winwidth) ? 2 : 1) : 1;
           if (width != (event.window.data1 / scaling) ||
               height != (event.window.data2 / scaling)) {
             disp_init(event.window.data1 / scaling,
