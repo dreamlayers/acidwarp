@@ -221,7 +221,25 @@ void disp_processInput(void) {
       case SDL_KEYDOWN:
         disp_processKey(event.key.keysym.sym);
         break;
-#if !SDL_VERSION_ATLEAST(2,0,0)
+#if SDL_VERSION_ATLEAST(2,0,0)
+      case SDL_WINDOWEVENT:
+        switch (event.window.event) {
+        case SDL_WINDOWEVENT_RESIZED:
+          if (width != (event.window.data1 / scaling) ||
+              height != (event.window.data2 / scaling)) {
+            disp_init(event.window.data1 / scaling,
+                      event.window.data2 / scaling,
+#ifdef HAVE_FULLSCREEN
+                      fullscreen
+#else
+                    0
+#endif
+                    );
+          }
+          break;
+        }
+        break;
+#else /* !SDL_VERSION_ATLEAST(2,0,0) */
       case SDL_VIDEORESIZE:
         /* Why are there events when there is no resize? */
         if (width != (event.resize.w / scaling) ||
@@ -369,6 +387,14 @@ void disp_init(int newwidth, int newheight, int flags)
 #endif
 
 #if SDL_VERSION_ATLEAST(2,0,0)
+  if (inited) {
+    disp_allocateOffscreen();
+    handleresize(width, height);
+    /* This definitely needs to be done after a resize. */
+    screen = SDL_GetWindowSurface(window);
+    return;
+  }
+
   videoflags =
 #ifdef HAVE_FULLSCREEN
                (fullscreen ? SDL_WINDOW_FULLSCREEN : SDL_WINDOW_RESIZABLE);
