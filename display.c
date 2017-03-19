@@ -4,10 +4,15 @@
  * Ported to SDL by Boris Gjenero
  */
 
+#define WITH_GL
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <SDL.h>
+#ifdef WITH_GL
+#include <GLES2/gl2.h>
+#endif
 
 #include "handy.h"
 #include "acidwarp.h"
@@ -20,8 +25,53 @@
 #if SDL_VERSION_ATLEAST(2,0,0)
 static SDL_Window *window = NULL;
 #endif
+#ifdef WITH_GL
+SDL_GLContext context;
+GLuint indtex, paltex, glprogram;
+
+const GLchar vertex[] =
+    "#version 100\n"
+    "precision mediump float;\n"
+//    "varying vec2 TexCoord0;\n"
+    "void main()\n"
+    "{\n"
+    "   gl_Position = vec4(0.0, 0.0, 0.0, 1.0);\n"
+    "   gl_PointSize = 500.0;\n"
+//    "   TexCoord0 = vec2(gl_MultiTexCoord0);"
+    "}\0";
+
+const GLchar fragment[] =
+#if 0
+    "#version 100\n"
+    "precision mediump float;\n"
+    "void main()\n"
+    "{\n"
+    "   gl_FragColor = vec4(gl_FragCoord.x / 512.0, gl_FragCoord.y / 512.0, 0.0, 1.0);\n"
+    "}\0";
+#else
+"#version 100\n"
+"precision mediump float;\n" //added
+"uniform sampler2D Palette;\n"
+"uniform sampler2D IndexTexture;\n"
+//"layout(origin_upper_left) in vec4 gl_FragCoord;\n"
+//"varying vec2 TexCoord0;\n"
+
+"void main()\n"
+"{\n"
+  //What color do we want to index?
+  ////"vec4 myindex = texture2D(IndexTexture, TexCoord0);\n"
+  "vec4 myindex = texture2D(IndexTexture, vec2(gl_FragCoord.x / 320.0, gl_FragCoord.y / 200.0));\n"
+  //Do a dependency texture read
+  "vec4 texel = texture2D(Palette, vec2(myindex.r, 0.0));\n"
+  //"gl_FragColor = texture2D(IndexTexture, vec2(gl_FragCoord.x / 512.0, gl_FragCoord.y / 512.0));\n"
+  "gl_FragColor = texel;\n"   //Output the color
+  //"gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);\n"
+"}\0";
+#endif
+#else
 static SDL_Surface *surface = NULL, *screen = NULL;
 static int disp_DrawingOnSurface;
+#endif
 #ifdef HAVE_PALETTE
 static int disp_UsePalette;
 #endif
@@ -40,6 +90,26 @@ static int width, height;
 
 void disp_setPalette(unsigned char *palette)
 {
+#ifdef WITH_GL
+  static GLubyte glcolors[256 * 4];
+  int i;
+
+  for (i = 0; i < 256; i++) {
+      glcolors[i*4+0] = palette[i*3+0] << 2;
+      glcolors[i*4+1] = palette[i*3+1] << 2;
+      glcolors[i*4+2] = palette[i*3+2] << 2;
+      glcolors[i*4+3] = 255;
+  }
+
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, paltex);
+  glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 256, 1, GL_RGBA,
+                  GL_UNSIGNED_BYTE, glcolors);
+
+  glClear(GL_COLOR_BUFFER_BIT);
+  glDrawArrays(GL_POINTS, 0, 1);
+  SDL_GL_SwapWindow(window);
+#else
   static SDL_Color sdlColors[256];
 
   int i;
@@ -81,10 +151,12 @@ void disp_setPalette(unsigned char *palette)
     SDL_Flip(screen);
 #endif
   }
+#endif
 }
 
 void disp_beginUpdate(void)
 {
+#ifndef WITH_GL
   /* Locking only needed at this point if drawing routines directly draw
    * on a surface, and that surface needs locking.
    */
@@ -95,10 +167,17 @@ void disp_beginUpdate(void)
     buf_graf = surface->pixels;
     buf_graf_stride = surface->pitch;
   }
+#endif
 }
 
 void disp_finishUpdate(void)
 {
+#ifdef WITH_GL
+  glActiveTexture(GL_TEXTURE1);
+  glBindTexture(GL_TEXTURE_2D, indtex);
+  glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_LUMINANCE,
+                  GL_UNSIGNED_BYTE, buf_graf);
+#else
   if (!disp_DrawingOnSurface) {
     int row;
     unsigned char *outp, *inp = buf_graf;
@@ -148,11 +227,13 @@ void disp_finishUpdate(void)
 #else
   SDL_Flip(screen);
 #endif
+#endif /* !WITH_GL */
 }
 
 #ifdef HAVE_FULLSCREEN
 static void disp_toggleFullscreen(void)
 {
+    return;
 #if SDL_VERSION_ATLEAST(2,0,0)
   if (fullscreen) {
     SDL_SetWindowFullscreen(window, 0);
@@ -210,6 +291,9 @@ static void disp_processKey(
 
 static void display_redraw(void)
 {
+#ifdef WITH_GL
+//FIXME
+#else
   /* Redraw parts that were overwritten. (This is unlikely with
    * modern compositing window managers */
   if (surface != screen) {
@@ -224,6 +308,7 @@ static void display_redraw(void)
     disp_beginUpdate();
     disp_finishUpdate();
   }
+#endif /* !WITH_GL */
 }
 
 void disp_processInput(void) {
@@ -380,8 +465,31 @@ static void disp_setIcon(void)
 }
 #endif
 
+static GLuint disp_newtex(void)
+{
+    /* https://stackoverflow.com/questions/11217121/how-to-manage-memory-with-texture-in-opengl */
+    GLuint texname;
+
+    glGenTextures(1, &texname);
+
+    glBindTexture(GL_TEXTURE_2D, texname);
+
+    /* Supposedly needed for GL_NEAREST on non power of 2 (NPOT) textures */
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+
+    return texname;
+}
+
 static void disp_allocateOffscreen(void)
 {
+#ifdef WITH_GL
+  buf_graf = malloc (width * height);
+  buf_graf_stride = width;
+  memset(buf_graf, 0, width * height);
+#else
   /* If there was a separate graphics buffer, free it. */
   if (!disp_DrawingOnSurface && buf_graf != NULL) {
     free(buf_graf);
@@ -427,6 +535,76 @@ static void disp_allocateOffscreen(void)
     buf_graf_stride = width;
     memset(buf_graf, 0, width * height);
   }
+#endif
+}
+
+static GLuint loadShader(GLuint program, GLenum type, const GLchar *shaderSrc) {
+    GLchar infolog[1024];
+    GLsizei loglen = 0;
+    GLuint shader;
+    shader = glCreateShader(type);
+    glShaderSource(shader, 1, &shaderSrc, NULL);
+    glCompileShader(shader);
+    glGetShaderInfoLog(shader, sizeof(infolog), &loglen, infolog);
+    fwrite(infolog, loglen, 1, stdout);
+
+    glAttachShader(program, shader);
+    return 0;
+}
+
+static void disp_glinit(int width, int height)
+{
+  GLint texLoc;
+
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+ 
+  SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+  SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+
+  window = SDL_CreateWindow("Demo", 
+                            SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+                            width, height,
+                            SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
+  context = SDL_GL_CreateContext(window);
+
+  paltex = disp_newtex();
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 256, 1, 0,
+               GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+  
+  indtex = disp_newtex();
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, width, height, 0,
+               GL_LUMINANCE, GL_UNSIGNED_BYTE, NULL);
+    
+  glprogram = glCreateProgram();
+  loadShader(glprogram, GL_VERTEX_SHADER, vertex);
+  loadShader(glprogram, GL_FRAGMENT_SHADER, fragment);
+  glLinkProgram(glprogram);
+  glUseProgram(glprogram);
+
+  /* https://www.opengl.org/discussion_boards/showthread.php/163092-Passing-Multiple-Textures-from-OpenGL-to-GLSL-shader */
+  texLoc = glGetUniformLocation(glprogram, "Palette");
+  glUniform1i(texLoc, 0);
+
+  texLoc = glGetUniformLocation(glprogram, "IndexTexture");
+  glUniform1i(texLoc, 1);
+
+
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, paltex);
+
+  glActiveTexture(GL_TEXTURE1);
+  glBindTexture(GL_TEXTURE_2D, indtex);
+
+  glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+  glViewport(0, 0, width, height);
+  
+  disp_allocateOffscreen();
+
+  /* This may be unnecessary if switching between windowed
+   * and full screen mode with the same dimensions. */
+  handleresize(width, height);
 }
 
 void disp_init(int newwidth, int newheight, int flags)
@@ -443,6 +621,8 @@ void disp_init(int newwidth, int newheight, int flags)
 
   width = newwidth;
   height = newheight;
+  disp_glinit(width, height);
+  return;
 #ifdef HAVE_FULLSCREEN
   fullscreen = (flags & DISP_FULLSCREEN) ? 1 : 0;
 #endif
@@ -451,8 +631,10 @@ void disp_init(int newwidth, int newheight, int flags)
   if (inited) {
     disp_allocateOffscreen();
     handleresize(width, height);
+#ifndef WITH_GL
     /* This definitely needs to be done after a resize. */
     screen = SDL_GetWindowSurface(window);
+#endif
     return;
   }
 #ifdef HAVE_FULLSCREEN
@@ -599,8 +781,11 @@ void disp_init(int newwidth, int newheight, int flags)
   /* Must be called after window is created */
   disp_setIcon();
 #endif
+
+#ifndef WITH_GL
   screen = SDL_GetWindowSurface(window);
-#else
+#endif
+#else /* !SDL_VERSION_ATLEAST(2,0,0) */
   screen = SDL_SetVideoMode(width*scaling, height*scaling,
 #ifdef HAVE_PALETTE
                             usedepth,
@@ -609,8 +794,10 @@ void disp_init(int newwidth, int newheight, int flags)
 #endif
                             videoflags);
 #endif
+#ifndef WITH_GL
   if (!screen) fatalSDLError("setting video mode");
   /* No need to ever free the screen surface from SDL_SetVideoMode() */
+#endif
 
   disp_allocateOffscreen();
 
