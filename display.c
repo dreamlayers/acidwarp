@@ -255,9 +255,11 @@ void disp_processInput(void) {
           /* If full screen resolution is at least twice as large as
            * previous window, then use 2x scaling, else no scaling.
            */
+#ifdef HAVE_FULLSCREEN
           scaling = fullscreen ?
                     ((winwidth != 0 &&
                       event.window.data1 >= 2 * winwidth) ? 2 : 1) : 1;
+#endif
           if (width != (event.window.data1 / scaling) ||
               height != (event.window.data2 / scaling)) {
             disp_init(event.window.data1 / scaling,
