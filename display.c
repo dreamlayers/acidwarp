@@ -28,7 +28,11 @@ static int disp_UsePalette;
 #endif
 #ifdef HAVE_FULLSCREEN
 static int fullscreen = 0;
+#if SDL_VERSION_ATLEAST(2,0,0)
+static int desktopfs = 0;
+#else
 static int nativewidth = 0, nativeheight;
+#endif
 static int winwidth = 0;
 static int winheight;
 #endif
@@ -157,7 +161,9 @@ static void disp_toggleFullscreen(void)
   } else {
     winwidth = width;
     winheight = height;
-    SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
+    SDL_SetWindowFullscreen(window, desktopfs ?
+                                    SDL_WINDOW_FULLSCREEN_DESKTOP :
+                                    SDL_WINDOW_FULLSCREEN);
     fullscreen = TRUE;
   }
 #else
@@ -452,10 +458,18 @@ void disp_init(int newwidth, int newheight, int flags)
     screen = SDL_GetWindowSurface(window);
     return;
   }
+#ifdef HAVE_FULLSCREEN
+  else if (flags & DISP_DESKTOP_RES_FS) {
+    desktopfs = TRUE;
+  }
+#endif
 
   videoflags =
 #ifdef HAVE_FULLSCREEN
-               (fullscreen ? SDL_WINDOW_FULLSCREEN : SDL_WINDOW_RESIZABLE);
+               (fullscreen ?
+                (desktopfs ? SDL_WINDOW_FULLSCREEN_DESKTOP :
+                 SDL_WINDOW_FULLSCREEN)
+                : SDL_WINDOW_RESIZABLE);
 #else
                SDL_WINDOW_RESIZABLE;
 #endif
@@ -556,7 +570,7 @@ void disp_init(int newwidth, int newheight, int flags)
   } else
 #endif /* HAVE_FULLSCREEN */
   {
-#ifdef HAVE_FULLSCREEN
+#if defined(HAVE_FULLSCREEN) && !SDL_VERSION_ATLEAST(2,0,0)
     if (fullscreen) {
       /* This happens when using desktop
        * resolution for full screen.
