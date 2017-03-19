@@ -19,7 +19,6 @@
 
 #if SDL_VERSION_ATLEAST(2,0,0)
 static SDL_Window *window = NULL;
-static SDL_Palette *sdlPalette = NULL;
 #endif
 static SDL_Surface *surface = NULL, *screen = NULL;
 static int disp_DrawingOnSurface;
@@ -69,7 +68,7 @@ void disp_setPalette(unsigned char *palette)
     /* Is this really necessary,
      * or could code above write directly into sdlPalette->Colors?
      */
-    SDL_SetPaletteColors(sdlPalette, sdlColors, 0, 256);
+    SDL_SetPaletteColors(surface->format->palette, sdlColors, 0, 256);
 #else
     SDL_SetColors(surface, sdlColors, 0, 256);
 #endif
@@ -407,10 +406,6 @@ static void disp_allocateOffscreen(void)
                                    8, 0, 0, 0, 0);
 
     if (!surface) fatalSDLError("creating secondary surface");
-
-#if SDL_VERSION_ATLEAST(2,0,0)
-    SDL_SetSurfacePalette(surface, sdlPalette);
-#endif
   }
 
   if (scaling == 1
@@ -511,14 +506,7 @@ void disp_init(int newwidth, int newheight, int flags)
       }
     }
 #endif
-#if SDL_VERSION_ATLEAST(2,0,0)
-    /* The palette must be allocated this way.
-       Otherwise, SDL_FreeSurface() could try to free() it. */
-    sdlPalette = SDL_AllocPalette(256);
-    if (sdlPalette == NULL) {
-      fatalSDLError("allocating palette");
-    }
-#else /* !SDL_VERSION_ATLEAST(2,0,0) */
+#if !SDL_VERSION_ATLEAST(2,0,0)
     SDL_WM_SetCaption("Acidwarp","acidwarp");
 #ifdef ADDICON
     /* Must be called before SDL_SetVideoMode() */
