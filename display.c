@@ -589,13 +589,10 @@ void disp_init(int newwidth, int newheight, int flags)
 #ifdef HAVE_PALETTE
     if (usedepth == 8) {
       disp_UsePalette = 1;
-#ifndef EMSCRIPTEN
-      /* This seems to have no beneficial effect with Emscrpten SDL.
-       * The displayed image never chages in response to SDL_SetPalette().
-       * Setting the flag just increases CPU usage.
+      /* This was slower with Emscripten SDL 1 before,
+       * but now it should be faster.
        */
       videoflags |= SDL_HWPALETTE;
-#endif
     } else {
       disp_UsePalette = 0;
       videoflags |= SDL_ANYFORMAT;

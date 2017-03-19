@@ -23,9 +23,6 @@ CFLAGS += -s USE_SDL=2
 endif
 EXESUFFIX = .html
 LDFLAGS := $(CFLAGS)
-ifeq ($(SDL),1)
-LDFLAGS += --pre-js pre.js
-endif
 else
 
 CONVERTEXISTS := $(shell command -v convert > /dev/null 2>&1 && \

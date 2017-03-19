@@ -76,7 +76,20 @@ static Uint32 timerProc(Uint32 interval, void *param)
 
 int main (int argc, char *argv[])
 {
-#ifndef EMSCRIPTEN
+#ifdef EMSCRIPTEN
+#if !SDL_VERSION_ATLEAST(2,0,0)
+  /* https://dreamlayers.blogspot.ca/2015/04/optimizing-emscripten-sdl-1-settings.html
+   * SDL.defaults.opaqueFrontBuffer = false; wouldn't work because alpha
+   * values are not set.
+   */
+  EM_ASM({
+    SDL.defaults.copyOnLock = false;
+    SDL.defaults.discardOnLock = true;
+    SDL.defaults.opaqueFrontBuffer = false;
+    Module.screenIsReadOnly = true;
+  });
+#endif
+#else /* !EMSCRIPTEN */
   SDL_cond *cond;
   SDL_mutex *mutex;
 #endif /* !EMSCRIPTEN */
