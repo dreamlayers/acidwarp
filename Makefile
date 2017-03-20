@@ -34,7 +34,11 @@ OBJECTS += acid_ico.o
 endif
 
 CFLAGS += $(shell $(SDL_CONFIG) --cflags)
-LIBS = $(shell $(SDL_CONFIG) --libs) -lm -lGL
+LIBS := $(shell $(SDL_CONFIG) --libs) -lm
+ifeq ($(GL),1)
+LIBS += -lGL
+CFLAGS += -DWITH_GL
+endif
 
 ifeq ($(PLATFORM),Cygwin)
 EXESUFFIX = .exe

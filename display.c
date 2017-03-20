@@ -4,14 +4,15 @@
  * Ported to SDL by Boris Gjenero
  */
 
-#define WITH_GL
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <SDL.h>
 #ifdef WITH_GL
 #include <GLES2/gl2.h>
+#if !SDL_VERSION_ATLEAST(2,0,0)
+#error OpenGL only supported with SDL 2
+#endif
 #endif
 
 #include "handy.h"
@@ -619,14 +620,81 @@ static void disp_glinit(int width, int height)
 
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   glViewport(0, 0, width, height);
-  
+}
+#endif /* WITH_GL */
+
+#if SDL_VERSION_ATLEAST(2,0,0)
+void disp_init(int newwidth, int newheight, int flags)
+{
+#ifndef WITH_GL
+  Uint32 videoflags;
+#endif
+  static int inited = 0;
+
+  width = newwidth;
+  height = newheight;
+#ifdef HAVE_FULLSCREEN
+  fullscreen = (flags & DISP_FULLSCREEN) ? 1 : 0;
+#endif
+
+  if (!inited) {
+#ifdef HAVE_FULLSCREEN
+    if (flags & DISP_DESKTOP_RES_FS) {
+      /* Need to know later when entering full screen another time */
+      desktopfs = TRUE;
+    }
+#endif
+
+#ifdef WITH_GL
+  disp_glinit(width, height);
+#else /* !WITH_GL */
+    videoflags =
+#ifdef HAVE_FULLSCREEN
+                 (fullscreen ?
+                  (desktopfs ? SDL_WINDOW_FULLSCREEN_DESKTOP :
+                   SDL_WINDOW_FULLSCREEN)
+                  : SDL_WINDOW_RESIZABLE);
+#else
+                 SDL_WINDOW_RESIZABLE;
+#endif
+
+
+#ifdef HAVE_FULLSCREEN
+    SDL_ShowCursor(!fullscreen);
+#endif
+
+    scaling = 1;
+
+    /* The screen is a destination for SDL_BlitSurface() copies.
+     * Nothing is ever directly drawn here, except with Emscripten.
+     */
+    window = SDL_CreateWindow("Acidwarp",
+                              SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+                              width*scaling, height*scaling, videoflags);
+#endif /* !WITH_GL */
+
+#ifdef ADDICON
+    /* Must be called after window is created */
+    disp_setIcon();
+#endif
+
+    inited = 1;
+  } /* !inited */
+
+#ifndef WITH_GL
+  /* Needs to be called again after resizing */
+  screen = SDL_GetWindowSurface(window);
+  if (!screen) fatalSDLError("getting window surface");
+#endif
+
   disp_allocateOffscreen();
 
   /* This may be unnecessary if switching between windowed
    * and full screen mode with the same dimensions. */
   handleresize(width, height);
 }
-#endif /* WITH_GL */
+
+#else /* !SDL_VERSION_ATLEAST(2,0,0) */
 
 void disp_init(int newwidth, int newheight, int flags)
 {
@@ -636,44 +704,16 @@ void disp_init(int newwidth, int newheight, int flags)
   static int nativedepth = 8;
   int usedepth;
 #endif
-#if defined(HAVE_FULLSCREEN) && !SDL_VERSION_ATLEAST(2,0,0)
+#ifdef HAVE_FULLSCREEN
   static int desktopaspect = 0;
 #endif
 
   width = newwidth;
   height = newheight;
-  disp_glinit(width, height);
-  return;
 #ifdef HAVE_FULLSCREEN
   fullscreen = (flags & DISP_FULLSCREEN) ? 1 : 0;
 #endif
 
-#if SDL_VERSION_ATLEAST(2,0,0)
-  if (inited) {
-    disp_allocateOffscreen();
-    handleresize(width, height);
-#ifndef WITH_GL
-    /* This definitely needs to be done after a resize. */
-    screen = SDL_GetWindowSurface(window);
-#endif
-    return;
-  }
-#ifdef HAVE_FULLSCREEN
-  else if (flags & DISP_DESKTOP_RES_FS) {
-    desktopfs = TRUE;
-  }
-#endif
-
-  videoflags =
-#ifdef HAVE_FULLSCREEN
-               (fullscreen ?
-                (desktopfs ? SDL_WINDOW_FULLSCREEN_DESKTOP :
-                 SDL_WINDOW_FULLSCREEN)
-                : SDL_WINDOW_RESIZABLE);
-#else
-               SDL_WINDOW_RESIZABLE;
-#endif
-#else /* !SDL_VERSION_ATLEAST(2,0,0) */
   videoflags = SDL_HWSURFACE | SDL_DOUBLEBUF |
 #ifndef HAVE_PALETTE
                SDL_ANYFORMAT |
@@ -683,9 +723,7 @@ void disp_init(int newwidth, int newheight, int flags)
 #else
                SDL_RESIZABLE;
 #endif
-#endif
 
-#if !SDL_VERSION_ATLEAST(2,0,0)
   if (!inited) {
 #ifdef HAVE_FULLSCREEN
     const SDL_VideoInfo *vi;
@@ -718,18 +756,19 @@ void disp_init(int newwidth, int newheight, int flags)
     /* Must be called before SDL_SetVideoMode() */
     disp_setIcon();
 #endif
-  }
-#endif /* !SDL_VERSION_ATLEAST(2,0,0) */
 
 #ifdef HAVE_FULLSCREEN
-  /* This causes an error when using Emscripten and Firefox */
-  SDL_ShowCursor(!fullscreen);
+    /* This causes an error when using Emscripten and Firefox */
+    SDL_ShowCursor(!fullscreen);
 #endif
+
+    inited = 1;
+  }  /* !inited */
 
 #ifdef HAVE_PALETTE
   usedepth = nativedepth;
 #endif
-#if defined(HAVE_FULLSCREEN) && !SDL_VERSION_ATLEAST(2,0,0)
+#ifdef HAVE_FULLSCREEN
   if (fullscreen && nativewidth == 0) {
     SDL_Rect **modes;
 
@@ -764,9 +803,9 @@ void disp_init(int newwidth, int newheight, int flags)
       disp_findBestMode(modes, &width, &height, &scaling, desktopaspect);
     }
   } else
-#endif /* defined(HAVE_FULLSCREEN) && !SDL_VERSION_ATLEAST(2,0,0) */
+#endif /* HAVE_FULLSCREEN */
   {
-#if defined(HAVE_FULLSCREEN) && !SDL_VERSION_ATLEAST(2,0,0)
+#ifdef HAVE_FULLSCREEN
     if (fullscreen) {
       /* This happens when using desktop
        * resolution for full screen.
@@ -797,19 +836,6 @@ void disp_init(int newwidth, int newheight, int flags)
   /* The screen is a destination for SDL_BlitSurface() copies.
    * Nothing is ever directly drawn here, except with Emscripten.
    */
-#if SDL_VERSION_ATLEAST(2,0,0)
-  window = SDL_CreateWindow("Acidwarp",
-                            SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-                            width*scaling, height*scaling, videoflags);
-#ifdef ADDICON
-  /* Must be called after window is created */
-  disp_setIcon();
-#endif
-
-#ifndef WITH_GL
-  screen = SDL_GetWindowSurface(window);
-#endif
-#else /* !SDL_VERSION_ATLEAST(2,0,0) */
   screen = SDL_SetVideoMode(width*scaling, height*scaling,
 #ifdef HAVE_PALETTE
                             usedepth,
@@ -817,17 +843,13 @@ void disp_init(int newwidth, int newheight, int flags)
                             0,
 #endif
                             videoflags);
-#endif
-#ifndef WITH_GL
   if (!screen) fatalSDLError("setting video mode");
   /* No need to ever free the screen surface from SDL_SetVideoMode() */
-#endif
 
   disp_allocateOffscreen();
 
   /* This may be unnecessary if switching between windowed
    * and full screen mode with the same dimensions. */
   handleresize(width, height);
-
-  inited = 1;
 }
+#endif /* !SDL_VERSION_ATLEAST(2,0,0) */
