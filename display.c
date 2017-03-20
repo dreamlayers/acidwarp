@@ -467,18 +467,21 @@ static void disp_setIcon(void)
 
 static GLuint disp_newtex(void)
 {
-    /* https://stackoverflow.com/questions/11217121/how-to-manage-memory-with-texture-in-opengl */
     GLuint texname;
 
     glGenTextures(1, &texname);
 
     glBindTexture(GL_TEXTURE_2D, texname);
 
-    /* Supposedly needed for GL_NEAREST on non power of 2 (NPOT) textures */
+    /* Needed for GL_NEAREST sampling on non power of 2 (NPOT) textures
+     * in OpenGL ES 2.0 and WebGL.
+     */
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+
+    /* Setting GL_TEXTURE_MAG_FILTER to nearest prevents image defects */
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     return texname;
 }
@@ -554,8 +557,7 @@ static GLuint loadShader(GLuint program, GLenum type, const GLchar *shaderSrc) {
 
 static void disp_glinit(int width, int height)
 {
-  GLint texLoc;
-
+  /* WebGL 1.0 is based on OpenGL ES 2.0 */
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
@@ -569,14 +571,6 @@ static void disp_glinit(int width, int height)
                             SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
   context = SDL_GL_CreateContext(window);
 
-  paltex = disp_newtex();
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 256, 1, 0,
-               GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-  
-  indtex = disp_newtex();
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, width, height, 0,
-               GL_LUMINANCE, GL_UNSIGNED_BYTE, NULL);
-    
   glprogram = glCreateProgram();
   loadShader(glprogram, GL_VERTEX_SHADER, vertex);
   loadShader(glprogram, GL_FRAGMENT_SHADER, fragment);
@@ -584,17 +578,21 @@ static void disp_glinit(int width, int height)
   glUseProgram(glprogram);
 
   /* https://www.opengl.org/discussion_boards/showthread.php/163092-Passing-Multiple-Textures-from-OpenGL-to-GLSL-shader */
-  texLoc = glGetUniformLocation(glprogram, "Palette");
-  glUniform1i(texLoc, 0);
 
-  texLoc = glGetUniformLocation(glprogram, "IndexTexture");
-  glUniform1i(texLoc, 1);
-
-
+  /* 256 x 1 texture used as palette lookup table */
+  glUniform1i(glGetUniformLocation(glprogram, "Palette"), 0);
   glActiveTexture(GL_TEXTURE0);
+  paltex = disp_newtex();
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 256, 1, 0,
+               GL_RGBA, GL_UNSIGNED_BYTE, NULL);
   glBindTexture(GL_TEXTURE_2D, paltex);
 
+  /* 8 bpp indexed colour texture used for image */
+  glUniform1i(glGetUniformLocation(glprogram, "IndexTexture"), 1);
   glActiveTexture(GL_TEXTURE1);
+  indtex = disp_newtex();
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, width, height, 0,
+               GL_LUMINANCE, GL_UNSIGNED_BYTE, NULL);
   glBindTexture(GL_TEXTURE_2D, indtex);
 
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
