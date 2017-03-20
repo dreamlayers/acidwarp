@@ -25,6 +25,7 @@
 #if SDL_VERSION_ATLEAST(2,0,0)
 static SDL_Window *window = NULL;
 #endif
+
 #ifdef WITH_GL
 SDL_GLContext context;
 GLuint indtex, paltex, glprogram;
@@ -57,14 +58,15 @@ const GLchar fragment[] =
       // Read RGBA value for that pixel from palette texture
       "gl_FragColor = texture2D(Palette, vec2(myindex.r, 0.0));\n"
     "}\0";
-
-#else
+#else /* !WITH_GL */
 static SDL_Surface *surface = NULL, *screen = NULL;
 static int disp_DrawingOnSurface;
-#endif
+#endif /* !WITH_GL */
+
 #ifdef HAVE_PALETTE
 static int disp_UsePalette;
 #endif
+
 #ifdef HAVE_FULLSCREEN
 static int fullscreen = 0;
 #if SDL_VERSION_ATLEAST(2,0,0)
@@ -74,7 +76,8 @@ static int nativewidth = 0, nativeheight;
 #endif
 static int winwidth = 0;
 static int winheight;
-#endif
+#endif /* HAVE_FULLSCREEN */
+
 static int scaling = 1;
 static int width, height;
 
@@ -99,7 +102,7 @@ void disp_setPalette(unsigned char *palette)
   glClear(GL_COLOR_BUFFER_BIT);
   glDrawArrays(GL_TRIANGLES, 0, 6);
   SDL_GL_SwapWindow(window);
-#else
+#else /* !WITH_GL  */
   static SDL_Color sdlColors[256];
 
   int i;
@@ -119,7 +122,7 @@ void disp_setPalette(unsigned char *palette)
     SDL_UnlockSurface(screen);
 #endif
   } else
-#endif
+#endif /* HAVE_PALETTE */
   {
     /* Update colours in software surface, blit it to the screen
      * with updated colours, and then show it on the screen.
@@ -129,7 +132,7 @@ void disp_setPalette(unsigned char *palette)
      * or could code above write directly into sdlPalette->Colors?
      */
     SDL_SetPaletteColors(surface->format->palette, sdlColors, 0, 256);
-#else
+#else /* !SDL_VERSION_ATLEAST(2,0,0) */
     SDL_SetColors(surface, sdlColors, 0, 256);
 #endif
     if (surface != screen) {
@@ -137,11 +140,11 @@ void disp_setPalette(unsigned char *palette)
     }
 #if SDL_VERSION_ATLEAST(2,0,0)
     SDL_UpdateWindowSurface(window);
-#else
+#else /* !SDL_VERSION_ATLEAST(2,0,0) */
     SDL_Flip(screen);
 #endif
   }
-#endif
+#endif /* !WITH_GL */
 }
 
 void disp_beginUpdate(void)
@@ -167,7 +170,7 @@ void disp_finishUpdate(void)
   glBindTexture(GL_TEXTURE_2D, indtex);
   glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_LUMINANCE,
                   GL_UNSIGNED_BYTE, buf_graf);
-#else
+#else /* !WITH_GL */
   if (!disp_DrawingOnSurface) {
     int row;
     unsigned char *outp, *inp = buf_graf;
@@ -214,7 +217,7 @@ void disp_finishUpdate(void)
   }
 #if SDL_VERSION_ATLEAST(2,0,0)
   SDL_UpdateWindowSurface(window);
-#else
+#else /* !SDL_VERSION_ATLEAST(2,0,0) */
   SDL_Flip(screen);
 #endif
 #endif /* !WITH_GL */
@@ -310,7 +313,7 @@ void disp_processInput(void) {
       case SDL_VIDEOEXPOSE:
         display_redraw();
         break;
-#endif
+#endif /* !SDL_VERSION_ATLEAST(2,0,0) */
 #ifdef HAVE_FULLSCREEN
       /* SDL full screen switching has no useful effect with Emscripten */
       case SDL_MOUSEBUTTONDOWN:
@@ -318,7 +321,7 @@ void disp_processInput(void) {
           disp_toggleFullscreen();
         }
         break;
-#endif
+#endif /* HAVE_FULLSCREEN */
       case SDL_KEYDOWN:
         disp_processKey(event.key.keysym.sym);
         break;
@@ -333,14 +336,14 @@ void disp_processInput(void) {
           scaling = fullscreen ?
                     ((winwidth != 0 &&
                       event.window.data1 >= 2 * winwidth) ? 2 : 1) : 1;
-#endif
+#endif /* HAVE_FULLSCREEN */
           if (width != (event.window.data1 / scaling) ||
               height != (event.window.data2 / scaling)) {
             disp_init(event.window.data1 / scaling,
                       event.window.data2 / scaling,
 #ifdef HAVE_FULLSCREEN
                       fullscreen
-#else
+#else /* !HAVE_FULLSCREEN */
                     0
 #endif
                     );
@@ -359,7 +362,7 @@ void disp_processInput(void) {
           disp_init(event.resize.w / scaling, event.resize.h / scaling,
 #ifdef HAVE_FULLSCREEN
                     fullscreen
-#else
+#else /* !HAVE_FULLSCREEN */
                     0
 #endif
                     );
@@ -453,36 +456,18 @@ static void disp_setIcon(void)
 #endif
   SDL_FreeSurface(iconsurface);
 }
-#endif
-
-static GLuint disp_newtex(void)
-{
-    GLuint texname;
-
-    glGenTextures(1, &texname);
-
-    glBindTexture(GL_TEXTURE_2D, texname);
-
-    /* Needed for GL_NEAREST sampling on non power of 2 (NPOT) textures
-     * in OpenGL ES 2.0 and WebGL.
-     */
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
-
-    /* Setting GL_TEXTURE_MAG_FILTER to nearest prevents image defects */
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-    return texname;
-}
+#endif /* ADDICON */
 
 static void disp_allocateOffscreen(void)
 {
 #ifdef WITH_GL
+  if (buf_graf != NULL) {
+    free(buf_graf);
+  }
   buf_graf = malloc (width * height);
   buf_graf_stride = width;
   memset(buf_graf, 0, width * height);
-#else
+#else /* !WITH_GL */
   /* If there was a separate graphics buffer, free it. */
   if (!disp_DrawingOnSurface && buf_graf != NULL) {
     free(buf_graf);
@@ -497,7 +482,7 @@ static void disp_allocateOffscreen(void)
     /* When using a real palette, buf_graf is used instead. */
     surface = screen;
   } else
-#endif
+#endif /* HAVE_PALETTE */
   {
     /* Create 8 bit surface to draw into. This is needed if pixel
      * formats differ or to respond to SDL_VIDEOEXPOSE events.
@@ -528,7 +513,29 @@ static void disp_allocateOffscreen(void)
     buf_graf_stride = width;
     memset(buf_graf, 0, width * height);
   }
-#endif
+#endif /* !WITH_GL */
+}
+
+#ifdef WITH_GL
+static GLuint disp_newtex(void)
+{
+    GLuint texname;
+
+    glGenTextures(1, &texname);
+
+    glBindTexture(GL_TEXTURE_2D, texname);
+
+    /* Needed for GL_NEAREST sampling on non power of 2 (NPOT) textures
+     * in OpenGL ES 2.0 and WebGL.
+     */
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+
+    /* Setting GL_TEXTURE_MAG_FILTER to nearest prevents image defects */
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    return texname;
 }
 
 static GLuint loadShader(GLuint program, GLenum type, const GLchar *shaderSrc) {
@@ -619,6 +626,7 @@ static void disp_glinit(int width, int height)
    * and full screen mode with the same dimensions. */
   handleresize(width, height);
 }
+#endif /* WITH_GL */
 
 void disp_init(int newwidth, int newheight, int flags)
 {
@@ -677,10 +685,12 @@ void disp_init(int newwidth, int newheight, int flags)
 #endif
 #endif
 
+#if !SDL_VERSION_ATLEAST(2,0,0)
   if (!inited) {
-#if defined(HAVE_FULLSCREEN) && !SDL_VERSION_ATLEAST(2,0,0)
+#ifdef HAVE_FULLSCREEN
     const SDL_VideoInfo *vi;
 
+    /* Save information about desktop video mode */
     vi = SDL_GetVideoInfo();
     if (vi != NULL) {
 #ifdef HAVE_PALETTE
@@ -700,15 +710,16 @@ void disp_init(int newwidth, int newheight, int flags)
         }
       }
     }
-#endif
-#if !SDL_VERSION_ATLEAST(2,0,0)
+#endif /* HAVE_FULLSCREEN */
+
     SDL_WM_SetCaption("Acidwarp","acidwarp");
+
 #ifdef ADDICON
     /* Must be called before SDL_SetVideoMode() */
     disp_setIcon();
 #endif
-#endif
   }
+#endif /* !SDL_VERSION_ATLEAST(2,0,0) */
 
 #ifdef HAVE_FULLSCREEN
   /* This causes an error when using Emscripten and Firefox */
@@ -753,7 +764,7 @@ void disp_init(int newwidth, int newheight, int flags)
       disp_findBestMode(modes, &width, &height, &scaling, desktopaspect);
     }
   } else
-#endif /* HAVE_FULLSCREEN */
+#endif /* defined(HAVE_FULLSCREEN) && !SDL_VERSION_ATLEAST(2,0,0) */
   {
 #if defined(HAVE_FULLSCREEN) && !SDL_VERSION_ATLEAST(2,0,0)
     if (fullscreen) {
