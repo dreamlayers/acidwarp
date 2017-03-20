@@ -577,7 +577,7 @@ static void disp_glinit(int width, int height)
   window = SDL_CreateWindow("Demo", 
                             SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                             width, height,
-                            SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
+                            SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
   context = SDL_GL_CreateContext(window);
 
   glprogram = glCreateProgram();
@@ -606,20 +606,18 @@ static void disp_glinit(int width, int height)
   glUniform1i(glGetUniformLocation(glprogram, "Palette"), 0);
   glActiveTexture(GL_TEXTURE0);
   paltex = disp_newtex();
+  glBindTexture(GL_TEXTURE_2D, paltex);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 256, 1, 0,
                GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-  glBindTexture(GL_TEXTURE_2D, paltex);
 
   /* 8 bpp indexed colour texture used for image */
   glUniform1i(glGetUniformLocation(glprogram, "IndexTexture"), 1);
   glActiveTexture(GL_TEXTURE1);
   indtex = disp_newtex();
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, width, height, 0,
-               GL_LUMINANCE, GL_UNSIGNED_BYTE, NULL);
-  glBindTexture(GL_TEXTURE_2D, indtex);
+
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-  glViewport(0, 0, width, height);
 }
 #endif /* WITH_GL */
 
@@ -681,11 +679,18 @@ void disp_init(int newwidth, int newheight, int flags)
     inited = 1;
   } /* !inited */
 
-#ifndef WITH_GL
+#ifdef WITH_GL
+  /* Create or recreate texture and set viewport, eg. when resizing */
+  glActiveTexture(GL_TEXTURE1);
+  glBindTexture(GL_TEXTURE_2D, indtex);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, width, height, 0,
+               GL_LUMINANCE, GL_UNSIGNED_BYTE, NULL);
+  glViewport(0, 0, width, height);
+#else /* !WITH_GL */
   /* Needs to be called again after resizing */
   screen = SDL_GetWindowSurface(window);
   if (!screen) fatalSDLError("getting window surface");
-#endif
+#endif /* !WITH_GL */
 
   disp_allocateOffscreen();
 
