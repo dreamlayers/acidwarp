@@ -35,42 +35,29 @@ const GLchar vertex[] =
     "attribute vec4 Position;\n"
     "attribute vec2 TexPos;\n"
     "varying vec2 TexCoord0;\n"
+
     "void main()\n"
     "{\n"
-    "   gl_Position = Position;\n"
-//    "   gl_PointSize = 10.0;\n"
-    "   TexCoord0 = TexPos;"
+        "gl_Position = Position;\n"
+        "TexCoord0 = TexPos;\n"
     "}\0";
 
 const GLchar fragment[] =
-#if 0
     "#version 100\n"
     "precision mediump float;\n"
+    "uniform sampler2D Palette;\n"
+    "uniform sampler2D IndexTexture;\n"
+    // Texture coordinates are passed from vertex shader
+    "varying vec2 TexCoord0;\n"
+
     "void main()\n"
     "{\n"
-    "   gl_FragColor = vec4(gl_FragCoord.x / 512.0, gl_FragCoord.y / 512.0, 0.0, 1.0);\n"
+      // Look up pixel in 8 bpp indexed colour image texture
+      "vec4 myindex = texture2D(IndexTexture, TexCoord0);\n"
+      // Read RGBA value for that pixel from palette texture
+      "gl_FragColor = texture2D(Palette, vec2(myindex.r, 0.0));\n"
     "}\0";
-#else
-"#version 100\n"
-"precision mediump float;\n" //added
-"uniform sampler2D Palette;\n"
-"uniform sampler2D IndexTexture;\n"
-//"layout(origin_upper_left) in vec4 gl_FragCoord;\n"
-"varying vec2 TexCoord0;\n"
 
-"void main()\n"
-"{\n"
-  //What color do we want to index?
-  "vec4 myindex = texture2D(IndexTexture, TexCoord0);\n"
-  //"vec4 myindex = texture2D(IndexTexture, vec2(gl_FragCoord.x / 320.0, gl_FragCoord.y / 200.0));\n"
-  //"vec4 myindex = texture2D(IndexTexture, TexCoord0);\n"
-  //Do a dependency texture read
-  "vec4 texel = texture2D(Palette, vec2(myindex.r, 0.0));\n"
-  //"gl_FragColor = texture2D(IndexTexture, vec2(gl_FragCoord.x / 512.0, gl_FragCoord.y / 512.0));\n"
-  "gl_FragColor = texel;\n"   //Output the color
-  //"gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);\n"
-"}\0";
-#endif
 #else
 static SDL_Surface *surface = NULL, *screen = NULL;
 static int disp_DrawingOnSurface;
