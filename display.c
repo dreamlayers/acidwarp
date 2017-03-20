@@ -32,11 +32,13 @@ GLuint indtex, paltex, glprogram;
 const GLchar vertex[] =
     "#version 100\n"
     "precision mediump float;\n"
-//    "varying vec2 TexCoord0;\n"
+    "attribute vec4 Position;\n"
+//    "attribute vec2 TexPos;\n"
+ //   "varying vec2 TexCoord0;\n"
     "void main()\n"
     "{\n"
-    "   gl_Position = vec4(0.0, 0.0, 0.0, 1.0);\n"
-    "   gl_PointSize = 500.0;\n"
+    "   gl_Position = Position;\n"
+//    "   gl_PointSize = 10.0;\n"
 //    "   TexCoord0 = vec2(gl_MultiTexCoord0);"
     "}\0";
 
@@ -107,7 +109,7 @@ void disp_setPalette(unsigned char *palette)
                   GL_UNSIGNED_BYTE, glcolors);
 
   glClear(GL_COLOR_BUFFER_BIT);
-  glDrawArrays(GL_POINTS, 0, 1);
+  glDrawArrays(GL_TRIANGLES, 0, 6);
   SDL_GL_SwapWindow(window);
 #else
   static SDL_Color sdlColors[256];
@@ -557,6 +559,16 @@ static GLuint loadShader(GLuint program, GLenum type, const GLchar *shaderSrc) {
 
 static void disp_glinit(int width, int height)
 {
+  GLuint buffer;
+  static const GLfloat vertices[] = {
+      -1.0, -1.0, 0.0, 1.0,
+      -1.0,  1.0, 0.0, 1.0,
+       1.0,  1.0, 0.0, 1.0,
+      -1.0, -1.0, 0.0, 1.0,
+       1.0,  1.0, 0.0, 1.0,
+       1.0, -1.0, 0.0, 1.0
+  };
+
   /* WebGL 1.0 is based on OpenGL ES 2.0 */
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
@@ -574,8 +586,16 @@ static void disp_glinit(int width, int height)
   glprogram = glCreateProgram();
   loadShader(glprogram, GL_VERTEX_SHADER, vertex);
   loadShader(glprogram, GL_FRAGMENT_SHADER, fragment);
+  glBindAttribLocation(glprogram, 0, "Position");
+  //glBindAttribLocation(glprogram, 1, "TexPos");
   glLinkProgram(glprogram);
   glUseProgram(glprogram);
+
+  glGenBuffers(1, &buffer);
+  glBindBuffer(GL_ARRAY_BUFFER, buffer);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
 
   /* https://www.opengl.org/discussion_boards/showthread.php/163092-Passing-Multiple-Textures-from-OpenGL-to-GLSL-shader */
 
