@@ -227,7 +227,6 @@ void disp_finishUpdate(void)
 #ifdef HAVE_FULLSCREEN
 static void disp_toggleFullscreen(void)
 {
-    return;
 #if SDL_VERSION_ATLEAST(2,0,0)
   if (fullscreen) {
     SDL_SetWindowFullscreen(window, 0);
@@ -259,6 +258,7 @@ static void disp_toggleFullscreen(void)
     disp_init(width, height, DISP_FULLSCREEN);
   }
 #endif
+  SDL_ShowCursor(!fullscreen);
 }
 #endif
 
@@ -335,7 +335,7 @@ void disp_processInput(void) {
           /* If full screen resolution is at least twice as large as
            * previous window, then use 2x scaling, else no scaling.
            */
-#ifdef HAVE_FULLSCREEN
+#if defined(HAVE_FULLSCREEN) && !defined(WITH_GL)
           scaling = fullscreen ?
                     ((winwidth != 0 &&
                       event.window.data1 >= 2 * winwidth) ? 2 : 1) : 1;
@@ -555,7 +555,7 @@ static GLuint loadShader(GLuint program, GLenum type, const GLchar *shaderSrc) {
     return 0;
 }
 
-static void disp_glinit(int width, int height)
+static void disp_glinit(int width, int height, Uint32 videoflags)
 {
   GLuint buffer;
   /* Vertices consist of point x, y, z, w followed by texture x and y */
@@ -576,10 +576,10 @@ static void disp_glinit(int width, int height)
   SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
   SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
-  window = SDL_CreateWindow("Demo", 
+  window = SDL_CreateWindow("Acidwarp",
                             SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                             width, height,
-                            SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+                            videoflags | SDL_WINDOW_OPENGL);
   context = SDL_GL_CreateContext(window);
 
   glprogram = glCreateProgram();
@@ -626,9 +626,7 @@ static void disp_glinit(int width, int height)
 #if SDL_VERSION_ATLEAST(2,0,0)
 void disp_init(int newwidth, int newheight, int flags)
 {
-#ifndef WITH_GL
   Uint32 videoflags;
-#endif
   static int inited = 0;
 
   width = newwidth;
@@ -645,9 +643,6 @@ void disp_init(int newwidth, int newheight, int flags)
     }
 #endif
 
-#ifdef WITH_GL
-  disp_glinit(width, height);
-#else /* !WITH_GL */
     videoflags =
 #ifdef HAVE_FULLSCREEN
                  (fullscreen ?
@@ -658,12 +653,15 @@ void disp_init(int newwidth, int newheight, int flags)
                  SDL_WINDOW_RESIZABLE;
 #endif
 
-
 #ifdef HAVE_FULLSCREEN
     SDL_ShowCursor(!fullscreen);
 #endif
 
     scaling = 1;
+
+#ifdef WITH_GL
+    disp_glinit(width, height, videoflags);
+#else /* !WITH_GL */
 
     /* The screen is a destination for SDL_BlitSurface() copies.
      * Nothing is ever directly drawn here, except with Emscripten.
