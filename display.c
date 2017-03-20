@@ -33,13 +33,13 @@ const GLchar vertex[] =
     "#version 100\n"
     "precision mediump float;\n"
     "attribute vec4 Position;\n"
-//    "attribute vec2 TexPos;\n"
- //   "varying vec2 TexCoord0;\n"
+    "attribute vec2 TexPos;\n"
+    "varying vec2 TexCoord0;\n"
     "void main()\n"
     "{\n"
     "   gl_Position = Position;\n"
 //    "   gl_PointSize = 10.0;\n"
-//    "   TexCoord0 = vec2(gl_MultiTexCoord0);"
+    "   TexCoord0 = TexPos;"
     "}\0";
 
 const GLchar fragment[] =
@@ -56,13 +56,14 @@ const GLchar fragment[] =
 "uniform sampler2D Palette;\n"
 "uniform sampler2D IndexTexture;\n"
 //"layout(origin_upper_left) in vec4 gl_FragCoord;\n"
-//"varying vec2 TexCoord0;\n"
+"varying vec2 TexCoord0;\n"
 
 "void main()\n"
 "{\n"
   //What color do we want to index?
-  ////"vec4 myindex = texture2D(IndexTexture, TexCoord0);\n"
-  "vec4 myindex = texture2D(IndexTexture, vec2(gl_FragCoord.x / 320.0, gl_FragCoord.y / 200.0));\n"
+  "vec4 myindex = texture2D(IndexTexture, TexCoord0);\n"
+  //"vec4 myindex = texture2D(IndexTexture, vec2(gl_FragCoord.x / 320.0, gl_FragCoord.y / 200.0));\n"
+  //"vec4 myindex = texture2D(IndexTexture, TexCoord0);\n"
   //Do a dependency texture read
   "vec4 texel = texture2D(Palette, vec2(myindex.r, 0.0));\n"
   //"gl_FragColor = texture2D(IndexTexture, vec2(gl_FragCoord.x / 512.0, gl_FragCoord.y / 512.0));\n"
@@ -560,13 +561,14 @@ static GLuint loadShader(GLuint program, GLenum type, const GLchar *shaderSrc) {
 static void disp_glinit(int width, int height)
 {
   GLuint buffer;
+  /* Vertices consist of point x, y, z, w followed by texture x and y */
   static const GLfloat vertices[] = {
-      -1.0, -1.0, 0.0, 1.0,
-      -1.0,  1.0, 0.0, 1.0,
-       1.0,  1.0, 0.0, 1.0,
-      -1.0, -1.0, 0.0, 1.0,
-       1.0,  1.0, 0.0, 1.0,
-       1.0, -1.0, 0.0, 1.0
+      -1.0, -1.0, 0.0, 1.0, 0.0, 1.0,
+      -1.0,  1.0, 0.0, 1.0, 0.0, 0.0,
+       1.0,  1.0, 0.0, 1.0, 1.0, 0.0,
+      -1.0, -1.0, 0.0, 1.0, 0.0, 1.0,
+       1.0,  1.0, 0.0, 1.0, 1.0, 0.0,
+       1.0, -1.0, 0.0, 1.0, 1.0, 1.0
   };
 
   /* WebGL 1.0 is based on OpenGL ES 2.0 */
@@ -587,7 +589,7 @@ static void disp_glinit(int width, int height)
   loadShader(glprogram, GL_VERTEX_SHADER, vertex);
   loadShader(glprogram, GL_FRAGMENT_SHADER, fragment);
   glBindAttribLocation(glprogram, 0, "Position");
-  //glBindAttribLocation(glprogram, 1, "TexPos");
+  glBindAttribLocation(glprogram, 1, "TexPos");
   glLinkProgram(glprogram);
   glUseProgram(glprogram);
 
@@ -595,7 +597,13 @@ static void disp_glinit(int width, int height)
   glBindBuffer(GL_ARRAY_BUFFER, buffer);
   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
   glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
+  glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE,
+                        (char *)&vertices[6] - (char *)&vertices[0], 0);
+  glEnableVertexAttribArray(1);
+  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE,
+                        (char *)&vertices[6] - (char *)&vertices[0],
+                        /* Why is this parameter declared as a pointer? */
+                        (void *)((char *)&vertices[4] - (char *)&vertices[0]));
 
   /* https://www.opengl.org/discussion_boards/showthread.php/163092-Passing-Multiple-Textures-from-OpenGL-to-GLSL-shader */
 
