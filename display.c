@@ -286,7 +286,9 @@ static void disp_processKey(
 static void display_redraw(void)
 {
 #ifdef WITH_GL
-//FIXME
+  glClear(GL_COLOR_BUFFER_BIT);
+  glDrawArrays(GL_TRIANGLES, 0, 6);
+  SDL_GL_SwapWindow(window);
 #else
   /* Redraw parts that were overwritten. (This is unlikely with
    * modern compositing window managers */
