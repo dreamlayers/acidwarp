@@ -101,7 +101,7 @@ void disp_setPalette(unsigned char *palette)
                   GL_UNSIGNED_BYTE, glcolors);
 
   glClear(GL_COLOR_BUFFER_BIT);
-  glDrawArrays(GL_TRIANGLES, 0, 6);
+  glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
   SDL_GL_SwapWindow(window);
 #else /* !WITH_GL  */
   static SDL_Color sdlColors[256];
@@ -580,10 +580,8 @@ static void disp_glinit(int width, int height, Uint32 videoflags)
   static const GLfloat vertices[] = {
       -1.0, -1.0, 0.0, 1.0, 0.0, 1.0,
       -1.0,  1.0, 0.0, 1.0, 0.0, 0.0,
+       1.0, -1.0, 0.0, 1.0, 1.0, 1.0,
        1.0,  1.0, 0.0, 1.0, 1.0, 0.0,
-      -1.0, -1.0, 0.0, 1.0, 0.0, 1.0,
-       1.0,  1.0, 0.0, 1.0, 1.0, 0.0,
-       1.0, -1.0, 0.0, 1.0, 1.0, 1.0
   };
 
   /* WebGL 1.0 is based on OpenGL ES 2.0 */
