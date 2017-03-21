@@ -9,7 +9,13 @@
 #include <string.h>
 #include <SDL.h>
 #ifdef WITH_GL
+#ifdef __APPLE__
+#include <OpenGL/gl.h>
+#undef WITH_GLES
+#else
 #include <GLES2/gl2.h>
+#define WITH_GLES
+#endif
 #if !SDL_VERSION_ATLEAST(2,0,0)
 #error OpenGL only supported with SDL 2
 #endif
@@ -32,8 +38,12 @@ SDL_GLContext context;
 GLuint indtex, paltex, glprogram;
 
 const GLchar vertex[] =
+#ifdef WITH_GLES
     "#version 100\n"
     "precision mediump float;\n"
+#else
+    "#version 110\n"
+#endif
     "attribute vec4 Position;\n"
     "attribute vec2 TexPos;\n"
     "varying vec2 TexCoord0;\n"
@@ -45,8 +55,12 @@ const GLchar vertex[] =
     "}\0";
 
 const GLchar fragment[] =
+#ifdef WITH_GLES
     "#version 100\n"
     "precision mediump float;\n"
+#else
+    "#version 110\n"
+#endif
     "uniform sampler2D Palette;\n"
     "uniform sampler2D IndexTexture;\n"
     // Texture coordinates are passed from vertex shader
@@ -597,8 +611,13 @@ static void disp_glinit(int width, int height, Uint32 videoflags)
        1.0,  1.0, 0.0, 1.0, 1.0, 0.0,
   };
 
+#ifdef WITH_GLES
   /* WebGL 1.0 is based on OpenGL ES 2.0 */
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+#else
+  // TODO: Make it work with core profile
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+#endif
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
  
@@ -610,6 +629,7 @@ static void disp_glinit(int width, int height, Uint32 videoflags)
                             width, height,
                             videoflags | SDL_WINDOW_OPENGL);
   context = SDL_GL_CreateContext(window);
+  if (context == NULL) fatalSDLError("creating OpenGL profile");
 
   glprogram = glCreateProgram();
   loadShader(glprogram, GL_VERTEX_SHADER, vertex);

@@ -41,7 +41,11 @@ endif
 CFLAGS += $(shell $(SDL_CONFIG) --cflags)
 LIBS := $(shell $(SDL_CONFIG) --libs) -lm
 ifeq ($(GL),1)
+ifeq ($(PLATFORM),Darwin)
+LIBS += -framework OpenGL
+else
 LIBS += -lGL
+endif
 CFLAGS += -DWITH_GL
 endif
 
