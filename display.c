@@ -264,11 +264,11 @@ static void disp_toggleFullscreen(void)
 
 static void disp_processKey(
 #if SDL_VERSION_ATLEAST(2,0,0)
-                            SDL_Keycode
+                            SDL_Keycode key
+#define keymod SDL_GetModState()
 #else
-                            SDLKey
+                            SDLKey key, SDLMod keymod
 #endif
-                            key
 )
 {
   switch (key) {
@@ -276,11 +276,23 @@ static void disp_processKey(
     case SDLK_DOWN: handleinput(CMD_PAL_SLOWER); break;
     case SDLK_p: handleinput(CMD_PAUSE); break;
     case SDLK_n: handleinput(CMD_SKIP); break;
+    case SDLK_c:
+    case SDLK_PAUSE:
+      if ((keymod & KMOD_CTRL) == 0) break; /* else like SDLK_q */
     case SDLK_q: handleinput(CMD_QUIT); break;
     case SDLK_k: handleinput(CMD_NEWPAL); break;
     case SDLK_l: handleinput(CMD_LOCK); break;
+#ifdef HAVE_FULLSCREEN
+    case SDLK_ESCAPE:
+      if (fullscreen) disp_toggleFullscreen();
+      break;
+    case SDLK_RETURN:
+      if (keymod & KMOD_ALT) disp_toggleFullscreen();
+      break;
+#endif /* HAVE_FULLSCREEN */
     default: break;
   }
+#undef keymod
 }
 
 static void display_redraw(void)
@@ -326,7 +338,11 @@ void disp_processInput(void) {
         break;
 #endif /* HAVE_FULLSCREEN */
       case SDL_KEYDOWN:
-        disp_processKey(event.key.keysym.sym);
+        disp_processKey(event.key.keysym.sym
+#if !SDL_VERSION_ATLEAST(2,0,0)
+                        , event.key.keysym.mod
+#endif
+                        );
         break;
 #if SDL_VERSION_ATLEAST(2,0,0)
       case SDL_WINDOWEVENT:
