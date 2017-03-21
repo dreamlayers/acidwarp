@@ -734,16 +734,17 @@ void disp_init(int newwidth, int newheight, int flags)
 #ifdef HAVE_FULLSCREEN
   fullscreen = (flags & DISP_FULLSCREEN) ? 1 : 0;
 #endif
-
   videoflags = SDL_HWSURFACE | SDL_DOUBLEBUF |
 #ifndef HAVE_PALETTE
                SDL_ANYFORMAT |
 #endif
 #ifdef HAVE_FULLSCREEN
-               (fullscreen ? SDL_FULLSCREEN : SDL_RESIZABLE);
-#else
-               SDL_RESIZABLE;
+               /* It would make sense to remove SDL_RESIZABLE for full screen,
+                * but that causes window to not be resizable anymore in Linux
+                * after it returns to windowed mode. */
+               (fullscreen ? SDL_FULLSCREEN : 0) |
 #endif
+               SDL_RESIZABLE;
 
   if (!inited) {
 #ifdef HAVE_FULLSCREEN
