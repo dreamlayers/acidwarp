@@ -45,7 +45,7 @@ LIBS += -lGL
 CFLAGS += -DWITH_GL
 endif
 
-ifeq ($(PLATFORM),Cygwin)
+ifneq (,$(findstring CYGWIN,$(PLATFORM)))
 EXESUFFIX = .exe
 CC := i686-w64-mingw32-gcc
 OBJECTS += acid_res.o
@@ -69,7 +69,7 @@ palinit.o: palinit.c handy.h acidwarp.h palinit.h
 rolnfade.o: rolnfade.c handy.h acidwarp.h rolnfade.h palinit.h display.h
 display.o: display.c display.h acidwarp.h handy.h
 img_float.o: img_float.c gen_img.c acidwarp.h
-ifeq ($(PLATFORM),Cygwin)
+ifneq (,$(findstring CYGWIN,$(PLATFORM)))
 acidwarp.ico: acidwarp.png
 	icotool -c -o $@ $^
 acid_res.o: acid_res.rc acidwarp.ico
