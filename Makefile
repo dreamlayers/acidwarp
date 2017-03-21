@@ -1,7 +1,12 @@
 CFLAGS := -g -O2 -Wall -Wmissing-prototypes
 SOURCES := acidwarp.c bit_map.c lut.c palinit.c rolnfade.c display.c img_float.c
 OBJECTS := $(SOURCES:%.c=%.o)
+ifeq ($(GL),1)
+# OpenGL ES / WebGL builds require SDL 2
+SDL := 2
+else
 SDL := 1
+endif
 
 ifdef EMMAKEN_COMPILER
 # Using emmake make to build using Emscripten

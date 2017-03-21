@@ -48,7 +48,12 @@ Windows executable also requires `icotool` from
 You can build for Windows from Cygwin. There `CC` defaults to
 `i686-w64-mingw32-gcc`.
 
-For building with Emscripten, use: `make PLATFORM=Emscripten`
+For building with Emscripten, use: `emmake make`
+
+Acidwarp can now be built with SDL 2 using `make SDL=2`. Experimental hardware
+accelerated palette cycling using SDL 2 and OpenGL ES 2.0 can be built with
+`make GL=1`. This can also be built with Emscripten for use with WebGL 1.0
+using `emmake make GL=1`.
 
 ## Further resources
 
