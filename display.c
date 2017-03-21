@@ -276,10 +276,12 @@ static void disp_processKey(
     case SDLK_DOWN: handleinput(CMD_PAL_SLOWER); break;
     case SDLK_p: handleinput(CMD_PAUSE); break;
     case SDLK_n: handleinput(CMD_SKIP); break;
+#ifndef EMSCRIPTEN
     case SDLK_c:
     case SDLK_PAUSE:
       if ((keymod & KMOD_CTRL) == 0) break; /* else like SDLK_q */
     case SDLK_q: handleinput(CMD_QUIT); break;
+#endif
     case SDLK_k: handleinput(CMD_NEWPAL); break;
     case SDLK_l: handleinput(CMD_LOCK); break;
 #ifdef HAVE_FULLSCREEN
