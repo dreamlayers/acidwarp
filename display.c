@@ -858,3 +858,25 @@ void disp_init(int newwidth, int newheight, int flags)
   handleresize(width, height);
 }
 #endif /* !SDL_VERSION_ATLEAST(2,0,0) */
+
+void disp_quit(void)
+{
+#ifdef WITH_GL
+  if (buf_graf != NULL) {
+    free(buf_graf);
+    buf_graf = NULL;
+  }
+  // FIXME: clean up OpenGL stuff
+#else
+  if (surface != NULL) {
+    if (surface != screen) SDL_FreeSurface(surface);
+    surface = NULL;
+  }
+  if (buf_graf != NULL) {
+    if (!disp_DrawingOnSurface) free(buf_graf);
+    buf_graf = NULL;
+  }
+  /* Do not free result of SDL_GetWindowSurface() or SDL_SetVideoMode() */
+  screen = NULL;
+#endif
+}

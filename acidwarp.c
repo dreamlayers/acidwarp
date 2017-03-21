@@ -60,10 +60,17 @@ static void commandline(int argc, char *argv[]);
 static void mainLoop(void);
 static void redraw(void);
 
+static void quit(int retcode)
+{
+  disp_quit();
+  SDL_Quit();
+  exit(retcode);
+}
+
 void fatalSDLError(const char *msg)
 {
   fprintf(stderr, "SDL error while %s: %s", msg, SDL_GetError());
-  SDL_Quit();
+  quit(-1);
 }
 
 #ifndef EMSCRIPTEN
@@ -100,10 +107,11 @@ int main (int argc, char *argv[])
                 | SDL_INIT_TIMER
 #endif
                 ) < 0 ) {
-    /* Not sure if it's safe to call SDL_Quit() here
-     * via fatalSDLError().
-     */
     fprintf(stderr, "Failed to initialize SDL: %s\n", SDL_GetError());
+#if SDL_VERSION_ATLEAST(2,0,0)
+    /* SDL 2 docs say this is safe, but SDL 1 docs don't. */
+    SDL_Quit();
+#endif
     return -1;
   }
 
@@ -263,8 +271,7 @@ void handleinput(enum acidwarp_command cmd)
       SKIP = TRUE;
       break;
     case CMD_QUIT:
-	  SDL_Quit();
-      exit(0);
+      quit(0);
       break;
     case CMD_NEWPAL:
       NP = TRUE;

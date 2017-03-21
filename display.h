@@ -7,6 +7,7 @@ void disp_processInput(void);
 #define DISP_FULLSCREEN 1
 #define DISP_DESKTOP_RES_FS 2
 void disp_init(int width, int height, int flags);
+void disp_quit(void);
 
 /* TODO remove these */
 extern UCHAR *buf_graf;
