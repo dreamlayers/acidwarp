@@ -24,7 +24,7 @@ Use the following keys to control the program:
 | **q**    | (Q)uit: causes Acidwarp to exit |
 | **n**    | (N)ext pattern |
 
-Click on the window to toggle full screen mode
+Double click on the window to toggle full screen mode.
 
 The program takes some optional command line arguments.  To see all of
 these, run: `acidwarp -h`.

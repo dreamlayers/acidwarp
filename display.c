@@ -335,7 +335,20 @@ void disp_processInput(void) {
       /* SDL full screen switching has no useful effect with Emscripten */
       case SDL_MOUSEBUTTONDOWN:
         if (event.button.button == SDL_BUTTON_LEFT) {
-          disp_toggleFullscreen();
+#if SDL_VERSION_ATLEAST(2,0,2)
+          if (event.button.clicks == 2) {
+            disp_toggleFullscreen();
+          }
+#else
+          // Earlier SDL versions don't report double clicks
+          static Uint32 dblclicktm = 0;
+          Uint32 clicktime = SDL_GetTicks();
+          // Like !SDL_TICKS_PASSED(), which may not be available
+          if ((Sint32)(dblclicktm - clicktime) > 0) {
+            disp_toggleFullscreen();
+          }
+          dblclicktm = clicktime + 200;
+#endif // !SDL_VERSION_ATLEAST(2,0,2)
         }
         break;
 #endif /* HAVE_FULLSCREEN */
