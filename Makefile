@@ -43,6 +43,8 @@ LIBS := $(shell $(SDL_CONFIG) --libs) -lm
 ifeq ($(GL),1)
 ifeq ($(PLATFORM),Darwin)
 LIBS += -framework OpenGL
+else ifneq (,$(findstring CYGWIN,$(PLATFORM)))
+LIBS += -lglew32 -lopengl32
 else
 LIBS += -lGL
 endif

@@ -9,9 +9,15 @@
 #include <string.h>
 #include <SDL.h>
 #ifdef WITH_GL
+#undef WITH_GLES
+#undef WITH_GLEW
 #ifdef __APPLE__
 #include <OpenGL/gl.h>
-#undef WITH_GLES
+#elif defined(_WIN32) || defined(_WIN64)
+/* Functions not defined in in opengl32.dll are used, and their
+   locations need to be loaded at runtime. Use GLEW for that */
+#include <GL/glew.h>
+#define WITH_GLEW
 #else
 #include <GLES2/gl2.h>
 #define WITH_GLES
@@ -196,7 +202,6 @@ void disp_finishUpdate(void)
     if (SDL_MUSTLOCK(surface)) {
       if (SDL_LockSurface(surface) != 0) {
         fatalSDLError("locking surface when ending update");
-        exit(-1);
       }
     }
     outp = surface->pixels;
@@ -630,6 +635,22 @@ static void disp_glinit(int width, int height, Uint32 videoflags)
                             videoflags | SDL_WINDOW_OPENGL);
   context = SDL_GL_CreateContext(window);
   if (context == NULL) fatalSDLError("creating OpenGL profile");
+
+#ifdef WITH_GLEW
+  {
+    GLenum err = glewInit();
+    if (GLEW_OK != err) {
+      fprintf(stderr, "Error initializing GLEW: %s\n",
+              glewGetErrorString(err));
+      quit(-1);
+    }
+    /* TODO: Check exactly what version is required */
+    if (!GLEW_VERSION_2_0) {
+      fprintf(stderr, "Quitting because OpenGL 2.0 not supported\n");
+      quit(-1);
+    }
+  }
+#endif
 
   glprogram = glCreateProgram();
   loadShader(glprogram, GL_VERTEX_SHADER, vertex);

@@ -60,7 +60,7 @@ static void commandline(int argc, char *argv[]);
 static void mainLoop(void);
 static void redraw(void);
 
-static void quit(int retcode)
+void quit(int retcode)
 {
   disp_quit();
   SDL_Quit();

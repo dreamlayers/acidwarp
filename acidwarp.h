@@ -39,3 +39,4 @@ void generate_image_float(int imageFuncNum, UCHAR *buf_graf,
                           int width, int height,
                           int colors, int pitch, int normalize);
 void fatalSDLError(const char *msg);
+void quit(int retcode);
