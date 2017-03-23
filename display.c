@@ -570,6 +570,17 @@ static void disp_allocateOffscreen(void)
 }
 
 #ifdef WITH_GL
+
+static void disp_glerror(char *s)
+{
+  GLenum err;
+  fprintf(stderr, "OpenGL error at %s. Error log follows:", s);
+  while((err = glGetError()) != GL_NO_ERROR) {
+    fprintf(stderr, "%x\n", err);
+  }
+  exit(-1);
+}
+
 static GLuint disp_newtex(void)
 {
     GLuint texname;
@@ -591,16 +602,24 @@ static GLuint disp_newtex(void)
     return texname;
 }
 
-static GLuint loadShader(GLuint program, GLenum type, const GLchar *shaderSrc) {
-    GLchar infolog[1024];
-    GLsizei loglen = 0;
+static GLuint loadShader(GLuint program, GLenum type,
+                         const GLchar *shaderSrc) {
+    GLint compile_status;
     GLuint shader;
     shader = glCreateShader(type);
+    if (shader == 0) disp_glerror("glCreateShader");
     glShaderSource(shader, 1, &shaderSrc, NULL);
     glCompileShader(shader);
-    glGetShaderInfoLog(shader, sizeof(infolog), &loglen, infolog);
-    fwrite(infolog, loglen, 1, stdout);
-
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &compile_status);
+    if (compile_status != GL_TRUE) {
+      GLsizei loglen = 0;
+      GLchar infolog[1024];
+      printf("OpenGL error: %s shader failed to compile. Info log follows:\n",
+             (type == GL_VERTEX_SHADER) ? "vertex" : "fragment");
+      glGetShaderInfoLog(shader, sizeof(infolog), &loglen, infolog);
+      fwrite(infolog, loglen, 1, stderr);
+      quit(-1);
+    }
     glAttachShader(program, shader);
     return 0;
 }
@@ -608,6 +627,8 @@ static GLuint loadShader(GLuint program, GLenum type, const GLchar *shaderSrc) {
 static void disp_glinit(int width, int height, Uint32 videoflags)
 {
   GLuint buffer;
+  GLint status;
+
   /* Vertices consist of point x, y, z, w followed by texture x and y */
   static const GLfloat vertices[] = {
       -1.0, -1.0, 0.0, 1.0, 0.0, 1.0,
@@ -653,11 +674,14 @@ static void disp_glinit(int width, int height, Uint32 videoflags)
 #endif
 
   glprogram = glCreateProgram();
+  if (glprogram == 0) disp_glerror("glCreateProgram");
   loadShader(glprogram, GL_VERTEX_SHADER, vertex);
   loadShader(glprogram, GL_FRAGMENT_SHADER, fragment);
   glBindAttribLocation(glprogram, 0, "Position");
   glBindAttribLocation(glprogram, 1, "TexPos");
   glLinkProgram(glprogram);
+  glGetProgramiv(glprogram, GL_LINK_STATUS, &status);
+  if (status != GL_TRUE) disp_glerror("glLinkProgram");
   glUseProgram(glprogram);
 
   glGenBuffers(1, &buffer);
