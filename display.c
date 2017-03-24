@@ -320,7 +320,7 @@ static void display_redraw(void)
 {
 #ifdef WITH_GL
   glClear(GL_COLOR_BUFFER_BIT);
-  glDrawArrays(GL_TRIANGLES, 0, 6);
+  glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
   SDL_GL_SwapWindow(window);
 #else
   /* Redraw parts that were overwritten. (This is unlikely with
