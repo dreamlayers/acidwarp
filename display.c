@@ -518,6 +518,10 @@ static void disp_allocateOffscreen(void)
     free(buf_graf);
   }
   buf_graf = malloc (width * height);
+  if (buf_graf == NULL) {
+      printf("Couldn't allocate graphics buffer.\n");
+      quit(-1);
+  }
   buf_graf_stride = width;
   memset(buf_graf, 0, width * height);
 #else /* !WITH_GL */
@@ -563,6 +567,10 @@ static void disp_allocateOffscreen(void)
   } else {
     disp_DrawingOnSurface = 0;
     buf_graf = malloc (width * height);
+    if (buf_graf == NULL) {
+      printf("Couldn't allocate graphics buffer.\n");
+      quit(-1);
+    }
     buf_graf_stride = width;
     memset(buf_graf, 0, width * height);
   }
@@ -654,6 +662,7 @@ static void disp_glinit(int width, int height, Uint32 videoflags)
                             SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                             width, height,
                             videoflags | SDL_WINDOW_OPENGL);
+  if (window == NULL) fatalSDLError("creating SDL OpenGL window");
   context = SDL_GL_CreateContext(window);
   if (context == NULL) fatalSDLError("creating OpenGL profile");
 
@@ -763,6 +772,7 @@ void disp_init(int newwidth, int newheight, int flags)
     window = SDL_CreateWindow("Acidwarp",
                               SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                               width*scaling, height*scaling, videoflags);
+    if (window == NULL) fatalSDLError("creating SDL window");
 #endif /* !WITH_GL */
 
 #ifdef ADDICON
