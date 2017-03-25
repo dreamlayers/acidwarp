@@ -773,6 +773,10 @@ void disp_init(int newwidth, int newheight, int flags)
     inited = 1;
   } /* !inited */
 
+  /* Raspberry Pi console will set window to size of full screen,
+   * and not give a resize event. */
+  SDL_GetWindowSize(window, &width, &height);
+
 #ifdef WITH_GL
   /* Create or recreate texture and set viewport, eg. when resizing */
   glActiveTexture(GL_TEXTURE1);
