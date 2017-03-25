@@ -1,3 +1,4 @@
+PREFIX := /usr/local
 CFLAGS := -g -O2 -Wall -Wmissing-prototypes
 SOURCES := acidwarp.c bit_map.c lut.c palinit.c rolnfade.c display.c img_float.c
 OBJECTS := $(SOURCES:%.c=%.o)
@@ -88,6 +89,20 @@ acidwarp.rgb: acidwarp.png
 acid_ico.c: acidwarp.rgb
 	xxd -i $< > $@
 
+.PHONY: clean install uninstall
+
 clean:
 	$(RM) *.o $(TARGET) acidwarp.ico acidwarp.rgb acid_ico.c \
           acidwarp.html.mem acidwarp.js
+
+install: $(TARGET) acidwarp.png acidwarp.desktop
+	install $< $(PREFIX)/bin
+	xdg-icon-resource install --novendor --context apps \
+	                          --size 256 acidwarp.png acidwarp
+	xdg-desktop-menu install --novendor acidwarp.desktop
+
+uninstall:
+	rm -f $(PREFIX)/bin/$(TARGET)
+	xdg-icon-resource uninstall --novendor --context apps \
+	                            --size 256 acidwarp
+	xdg-desktop-menu uninstall --novendor acidwarp.desktop
