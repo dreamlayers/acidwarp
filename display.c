@@ -102,6 +102,9 @@ static int winheight;
 static int scaling = 1;
 static int width, height;
 
+int swapstate;
+static void *buf1, *buf2, *buf_out;
+
 void disp_setPalette(unsigned char *palette)
 {
 #ifdef WITH_GL
@@ -187,10 +190,12 @@ void disp_beginUpdate(void)
 void disp_finishUpdate(void)
 {
 #ifdef WITH_GL
+#if 0
   glActiveTexture(GL_TEXTURE1);
   glBindTexture(GL_TEXTURE_2D, indtex);
   glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_LUMINANCE,
                   GL_UNSIGNED_BYTE, buf_graf);
+#endif
 #else /* !WITH_GL */
   if (!disp_DrawingOnSurface) {
     int row;
@@ -319,9 +324,11 @@ static void disp_processKey(
 static void display_redraw(void)
 {
 #ifdef WITH_GL
-  glClear(GL_COLOR_BUFFER_BIT);
-  glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-  SDL_GL_SwapWindow(window);
+  if (buf_out != NULL) {
+    glClear(GL_COLOR_BUFFER_BIT);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    SDL_GL_SwapWindow(window);
+  }
 #else
   /* Redraw parts that were overwritten. (This is unlikely with
    * modern compositing window managers */
@@ -511,13 +518,36 @@ static void disp_setIcon(void)
 }
 #endif /* ADDICON */
 
+void disp_swapBuffers(void)
+{
+  if (swapstate) {
+    buf_out = buf2;
+    buf_graf = buf1;
+    swapstate = 0;
+  } else {
+    buf_out = buf1;
+    buf_graf = buf2;
+    swapstate = 1;
+  }
+  glActiveTexture(GL_TEXTURE1);
+  glBindTexture(GL_TEXTURE_2D, indtex);
+  glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_LUMINANCE,
+                  GL_UNSIGNED_BYTE, buf_out);
+
+}
+
 static void disp_allocateOffscreen(void)
 {
 #ifdef WITH_GL
   if (buf_graf != NULL) {
     free(buf_graf);
   }
-  buf_graf = malloc (width * height);
+  buf1 = malloc (width * height);
+  buf2 = malloc (width * height);
+  buf_graf = buf1;
+  buf_out = NULL;
+  swapstate = 0;
+
   if (buf_graf == NULL) {
       printf("Couldn't allocate graphics buffer.\n");
       quit(-1);

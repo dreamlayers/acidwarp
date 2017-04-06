@@ -48,6 +48,14 @@ static int NP = FALSE; /* flag indicates new palette */
 static int LOCK = FALSE; /* flag indicates don't change to next image */
 static int imageFuncList[NUM_IMAGE_FUNCTIONS];
 static int imageFuncListIndex=0;
+#ifndef EMSCRIPEN
+SDL_bool drawnext = SDL_FALSE;
+SDL_cond *drawnext_cond;
+SDL_bool drawdone = SDL_FALSE;
+SDL_cond *drawdone_cond;
+SDL_mutex *draw_mtx;
+static int drawingthread(void *param);
+#endif /* !EMSCRITPEN */
 
 /* Prototypes for forward referenced functions */
 static void printStrArray(char *strArray[]);
@@ -138,9 +146,13 @@ int main (int argc, char *argv[])
   if (cond == NULL) {
     fatalSDLError("creating condition variable");
   }
+  draw_mtx = SDL_CreateMutex();
+  drawdone_cond = SDL_CreateCond();
+  drawnext_cond = SDL_CreateCond();
   if (SDL_AddTimer(ROTATION_DELAY / 1000, timerProc, cond) == 0) {
     fatalSDLError("adding timer");
   }
+  SDL_CreateThread(drawingthread, "DrawingThread", NULL);
   while(1) {
     mainLoop();
     if (SDL_LockMutex(mutex) != 0) {
@@ -200,14 +212,6 @@ static void mainLoop(void)
     state = STATE_NEXT;
     /* Fall through */
   case STATE_NEXT:
-    show_logo = 0;
-    /* move to the next image */
-    if (++imageFuncListIndex >= NUM_IMAGE_FUNCTIONS)
-      {
-	imageFuncListIndex = 0;
-	makeShuffledList(imageFuncList, NUM_IMAGE_FUNCTIONS);
-      }
-    
     /* install a new image */
     redraw();
 
@@ -293,7 +297,8 @@ void handleinput(enum acidwarp_command cmd)
     }
 }
 
-void redraw(void) {
+/* Drawing code which runs on separate thread */
+static void draw(void) {
   disp_beginUpdate();
   if (show_logo) {
     writeBitmapImageToArray(buf_graf, NOAHS_FACE, width, height,
@@ -310,6 +315,55 @@ void redraw(void) {
     }
   }
   disp_finishUpdate();
+}
+
+/* Drawing runs on separate thread, so as soon as one image is drawn to the
+ * screen, the next can be computed in the background. This way, typical
+ * image changes won't need to wait for drawing computations, which can be
+ * slow when generating large images using floating point.
+ */
+static int drawingthread(void *param) {
+  while (1) {
+    /* Draw next image to back buffer */
+    draw();
+
+    /* Tell main thread that image is drawn */
+    SDL_LockMutex(draw_mtx);
+    drawdone = SDL_TRUE;
+    SDL_CondSignal(drawdone_cond);
+
+    /* Wait for next image */
+    while (!drawnext) {
+      SDL_CondWait(drawnext_cond, draw_mtx);
+    }
+    drawnext = SDL_FALSE;
+    SDL_UnlockMutex(draw_mtx);
+
+    /* move to the next image */
+    show_logo = 0;
+    if (++imageFuncListIndex >= NUM_IMAGE_FUNCTIONS) {
+      imageFuncListIndex = 0;
+      makeShuffledList(imageFuncList, NUM_IMAGE_FUNCTIONS);
+    }
+  }
+  return 0;
+}
+
+void redraw(void) {
+  /* Wait for image to finish drawing image */
+  SDL_LockMutex(draw_mtx);
+  while (!drawdone) {
+    SDL_CondWait(drawdone_cond, draw_mtx);
+  }
+  drawdone = SDL_FALSE;
+
+  /* This should actually display what the thread drew */
+  disp_swapBuffers();
+
+  drawnext = SDL_TRUE;
+  /* Tell drawing thread it can continue now that buffers are swapped */
+  SDL_CondSignal(drawnext_cond);
+  SDL_UnlockMutex(draw_mtx);
 }
 
 void handleresize(int newwidth, int newheight)

@@ -3,6 +3,7 @@
 void disp_setPalette(unsigned char *palette);
 void disp_beginUpdate(void);
 void disp_finishUpdate(void);
+void disp_swapBuffers(void);
 void disp_processInput(void);
 #define DISP_FULLSCREEN 1
 #define DISP_DESKTOP_RES_FS 2
