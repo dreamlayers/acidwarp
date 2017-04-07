@@ -579,6 +579,7 @@ static void disp_reallocBuffer(UCHAR **buf)
 
 static void disp_allocateOffscreen(void)
 {
+  stopdrawing();
 #ifdef WITH_GL
   disp_reallocBuffer(&buf_graf);
   buf_graf_stride = width;

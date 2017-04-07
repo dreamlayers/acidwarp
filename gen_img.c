@@ -63,7 +63,12 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
   y1 = RANDOM(40)-20;  y2 = RANDOM(40)-20;
   y3 = RANDOM(40)-20;  y4 = RANDOM(40)-20;
 
-  for (_y = 0; _y < _height; ++_y)
+  for (_y = 0;
+       _y < _height
+#ifdef ENABLE_THREADS
+       && !abort_draw
+#endif
+       ; ++_y)
     {
 #ifdef ENABLE_FLOAT
       if (normalize) {

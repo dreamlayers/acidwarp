@@ -10,6 +10,9 @@ void disp_processInput(void);
 void disp_init(int width, int height, int flags);
 void disp_quit(void);
 
+/* Callback */
+void stopdrawing(void);
+
 /* TODO remove these */
 extern UCHAR *buf_graf;
 extern unsigned int buf_graf_stride;

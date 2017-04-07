@@ -48,13 +48,15 @@ static int NP = FALSE; /* flag indicates new palette */
 static int LOCK = FALSE; /* flag indicates don't change to next image */
 static int imageFuncList[NUM_IMAGE_FUNCTIONS];
 static int imageFuncListIndex=0;
-#ifndef EMSCRIPEN
+#ifdef ENABLE_THREADS
 SDL_bool drawnext = SDL_FALSE;
-SDL_cond *drawnext_cond;
+SDL_cond *drawnext_cond = NULL;
 SDL_bool drawdone = SDL_FALSE;
-SDL_cond *drawdone_cond;
-SDL_mutex *draw_mtx;
-static int drawingthread(void *param);
+SDL_cond *drawdone_cond = NULL;
+SDL_mutex *draw_mtx = NULL;
+static int drawing_main(void *param);
+SDL_Thread *drawing_thread = NULL;
+int abort_draw = 0;
 #endif /* !EMSCRITPEN */
 
 /* Prototypes for forward referenced functions */
@@ -70,6 +72,7 @@ static void redraw(void);
 
 void quit(int retcode)
 {
+  stopdrawing();
   disp_quit();
   SDL_Quit();
   exit(retcode);
@@ -152,11 +155,11 @@ int main (int argc, char *argv[])
   if (SDL_AddTimer(ROTATION_DELAY / 1000, timerProc, cond) == 0) {
     fatalSDLError("adding timer");
   }
-  SDL_CreateThread(drawingthread,
+  drawing_thread = SDL_CreateThread(drawing_main,
 #if SDL_VERSION_ATLEAST(2,0,0)
-                   "DrawingThread",
+                                    "DrawingThread",
 #endif
-                   NULL);
+                                    NULL);
   while(1) {
     mainLoop();
     if (SDL_LockMutex(mutex) != 0) {
@@ -326,7 +329,7 @@ static void draw(void) {
  * image changes won't need to wait for drawing computations, which can be
  * slow when generating large images using floating point.
  */
-static int drawingthread(void *param) {
+static int drawing_main(void *param) {
   while (1) {
     /* Draw next image to back buffer */
     draw();
@@ -351,6 +354,18 @@ static int drawingthread(void *param) {
     }
   }
   return 0;
+}
+
+void stopdrawing(void) {
+  if (drawing_thread != NULL) {
+    SDL_LockMutex(draw_mtx);
+    while (!drawdone) {
+      abort_draw = 1;
+      SDL_CondWait(drawdone_cond, draw_mtx);
+      abort_draw = 0;
+    }
+    SDL_UnlockMutex(draw_mtx);
+  }
 }
 
 void redraw(void) {
