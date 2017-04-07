@@ -152,7 +152,11 @@ int main (int argc, char *argv[])
   if (SDL_AddTimer(ROTATION_DELAY / 1000, timerProc, cond) == 0) {
     fatalSDLError("adding timer");
   }
-  SDL_CreateThread(drawingthread, "DrawingThread", NULL);
+  SDL_CreateThread(drawingthread,
+#if SDL_VERSION_ATLEAST(2,0,0)
+                   "DrawingThread",
+#endif
+                   NULL);
   while(1) {
     mainLoop();
     if (SDL_LockMutex(mutex) != 0) {
