@@ -57,6 +57,7 @@ SDL_mutex *draw_mtx = NULL;
 static int drawing_main(void *param);
 SDL_Thread *drawing_thread = NULL;
 int abort_draw = 0;
+static int redraw_same = 0;
 #endif /* !EMSCRITPEN */
 
 /* Prototypes for forward referenced functions */
@@ -305,18 +306,18 @@ void handleinput(enum acidwarp_command cmd)
 }
 
 /* Drawing code which runs on separate thread */
-static void draw(void) {
+static void draw(int which) {
   disp_beginUpdate();
-  if (show_logo) {
+  if (which < 0) {
     writeBitmapImageToArray(buf_graf, NOAHS_FACE, width, height,
                             buf_graf_stride);
   } else {
     if (floating_point) {
-      generate_image_float(imageFuncList[imageFuncListIndex],
+      generate_image_float(which,
                            buf_graf, width/2, height/2, width, height,
                            256, buf_graf_stride, normalize);
     } else {
-      generate_image(imageFuncList[imageFuncListIndex],
+      generate_image(which,
                      buf_graf, width/2, height/2, width, height,
                      256, buf_graf_stride);
     }
@@ -330,9 +331,12 @@ static void draw(void) {
  * slow when generating large images using floating point.
  */
 static int drawing_main(void *param) {
+  int displayed_img;
+  int draw_img = show_logo ? -1 : imageFuncList[imageFuncListIndex];
+  displayed_img = draw_img;
   while (1) {
     /* Draw next image to back buffer */
-    draw();
+    draw(draw_img);
 
     /* Tell main thread that image is drawn */
     SDL_LockMutex(draw_mtx);
@@ -346,11 +350,18 @@ static int drawing_main(void *param) {
     drawnext = SDL_FALSE;
     SDL_UnlockMutex(draw_mtx);
 
-    /* move to the next image */
-    show_logo = 0;
-    if (++imageFuncListIndex >= NUM_IMAGE_FUNCTIONS) {
-      imageFuncListIndex = 0;
-      makeShuffledList(imageFuncList, NUM_IMAGE_FUNCTIONS);
+    if (redraw_same) {
+      draw_img = displayed_img;
+      redraw_same = 0;
+    } else {
+      /* move to the next image */
+      show_logo = 0;
+      if (++imageFuncListIndex >= NUM_IMAGE_FUNCTIONS) {
+        imageFuncListIndex = 0;
+        makeShuffledList(imageFuncList, NUM_IMAGE_FUNCTIONS);
+      }
+      displayed_img = draw_img;
+      draw_img = imageFuncList[imageFuncListIndex];
     }
   }
   return 0;
@@ -364,6 +375,7 @@ void stopdrawing(void) {
       SDL_CondWait(drawdone_cond, draw_mtx);
       abort_draw = 0;
     }
+    drawdone = SDL_FALSE;
     SDL_UnlockMutex(draw_mtx);
   }
 }
@@ -385,14 +397,22 @@ void redraw(void) {
   SDL_UnlockMutex(draw_mtx);
 }
 
+static void drawsame(void) {
+  redraw_same = 1;
+  drawnext = SDL_TRUE;
+  SDL_CondSignal(drawnext_cond);
+  SDL_UnlockMutex(draw_mtx);
+}
+
 void handleresize(int newwidth, int newheight)
 {
-    width = newwidth;
-    height = newheight;
-    if (ready_to_draw) {
-      redraw();
-      applyPalette();
-    }
+  width = newwidth;
+  height = newheight;
+  if (ready_to_draw) {
+    drawsame();
+    redraw();
+    applyPalette();
+  }
 }
 
 static void commandline(int argc, char *argv[])
