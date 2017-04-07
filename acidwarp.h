@@ -6,6 +6,7 @@
 
 #if !defined(EMSCRIPTEN)
 #define HAVE_FULLSCREEN
+#define ENABLE_THREADS
 #endif
 
 /* Palette types  */
