@@ -198,8 +198,8 @@ void disp_finishUpdate(void)
   /* Locking only needed at this point if drawing routines directly draw
    * on a surface, and that surface needs locking.
    */
-  if (disp_DrawingOnSurface && SDL_MUSTLOCK(draw_surf)) {
-    SDL_UnlockSurface(draw_surf);
+  if (disp_DrawingOnSurface) {
+    if (SDL_MUSTLOCK(draw_surf)) SDL_UnlockSurface(draw_surf);
     buf_graf = NULL;
   }
 #endif
@@ -577,23 +577,39 @@ static void disp_reallocBuffer(UCHAR **buf)
   }
 }
 
+#ifndef WITH_GL
+static void disp_freeSurface(SDL_Surface **surf)
+{
+  if (*surf != NULL) {
+    SDL_FreeSurface(*surf);
+    *surf = NULL;
+  }
+}
+
+static void disp_allocSurface(SDL_Surface **surf)
+{
+  *surf = SDL_CreateRGBSurface(SDL_SWSURFACE,
+                               width*scaling, height*scaling,
+                               8, 0, 0, 0, 0);
+  if (!(*surf)) fatalSDLError("creating secondary surface");
+}
+
+#endif /* !WITH_GL */
+
 static void disp_allocateOffscreen(void)
 {
+  /* Drawing must not be happening in the background
+   * while the memory being drawn to gets reallocated!
+   */
   stopdrawing();
 #ifdef WITH_GL
   disp_reallocBuffer(&buf_graf);
   buf_graf_stride = width;
 #else /* !WITH_GL */
   /* Free secondary surface */
-  if (out_surf != NULL && out_surf != screen) {
-    SDL_FreeSurface(out_surf);
-    out_surf = NULL;
-  }
+  if (out_surf != screen) disp_freeSurface(&out_surf);
 #ifdef ENABLE_THREADS
-  if (draw_surf != NULL) {
-    SDL_FreeSurface(draw_surf);
-    draw_surf = NULL;
-  }
+  disp_freeSurface(&draw_surf);
 #endif /* ENABLE_THREADS */
 
 #ifdef HAVE_PALETTE
@@ -606,10 +622,7 @@ static void disp_allocateOffscreen(void)
     /* Create 8 bit surface to draw into. This is needed if pixel
      * formats differ or to respond to SDL_VIDEOEXPOSE events.
      */
-    out_surf = SDL_CreateRGBSurface(SDL_SWSURFACE,
-                                    width*scaling, height*scaling,
-                                    8, 0, 0, 0, 0);
-    if (!out_surf) fatalSDLError("creating secondary surface");
+    disp_allocSurface(&out_surf);
   }
 
   if (scaling == 1
@@ -628,10 +641,7 @@ static void disp_allocateOffscreen(void)
     }
     disp_DrawingOnSurface = 1;
 #ifdef ENABLE_THREADS
-    draw_surf = SDL_CreateRGBSurface(SDL_SWSURFACE,
-                                     width*scaling, height*scaling,
-                                     8, 0, 0, 0, 0);
-    if (!draw_surf) fatalSDLError("creating alternate secondary surface");
+    disp_allocSurface(&draw_surf);
 #endif /* ENABLE_THREADS */
   } else {
     disp_DrawingOnSurface = 0;
@@ -1038,30 +1048,24 @@ void disp_init(int newwidth, int newheight, int flags)
 void disp_quit(void)
 {
 #ifdef WITH_GL
-  if (buf_graf != NULL) {
-    free(buf_graf);
-    buf_graf = NULL;
-  }
+  disp_freeBuffer(&buf_graf);
   // FIXME: clean up OpenGL stuff
-#else
-  if (out_surf != NULL) {
-    if (out_surf != screen) SDL_FreeSurface(out_surf);
-    out_surf = NULL;
-  }
-  if (buf_graf != NULL) {
-    if (!disp_DrawingOnSurface) free(buf_graf);
-    buf_graf = NULL;
-  }
+#else /* !WITH_GL */
+  if (disp_DrawingOnSurface) {
+    if (out_surf == screen) {
+      out_surf = NULL;
+    } else {
+      disp_freeSurface(&out_surf);
+    }
 #ifdef ENABLE_THREADS
-  if (draw_surf != NULL) {
-    SDL_FreeSurface(draw_surf);
-    draw_surf = NULL;
-  }
-  if (buf_out != NULL) {
-    if (!disp_DrawingOnSurface) free(buf_out);
-    buf_out = NULL;
-  }
+    disp_freeSurface(&draw_surf);
 #endif /* ENABLE_THREADS */
+  } else {
+    disp_freeBuffer(&buf_graf);
+#ifdef ENABLE_THREADS
+    disp_freeBuffer(&buf_out);
+#endif /* ENABLE_THREADS */
+  }
   /* Do not free result of SDL_GetWindowSurface() or SDL_SetVideoMode() */
   screen = NULL;
 #endif
