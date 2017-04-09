@@ -1,6 +1,7 @@
 PREFIX := /usr/local
 CFLAGS := -g -O2 -Wall -Wmissing-prototypes
-SOURCES := acidwarp.c bit_map.c lut.c palinit.c rolnfade.c display.c img_float.c
+SOURCES := acidwarp.c bit_map.c lut.c palinit.c rolnfade.c display.c \
+           img_float.c draw.c
 OBJECTS := $(SOURCES:%.c=%.o)
 ifeq ($(GL),1)
 # OpenGL ES / WebGL builds require SDL 2
@@ -76,6 +77,7 @@ palinit.o: palinit.c handy.h acidwarp.h palinit.h
 rolnfade.o: rolnfade.c handy.h acidwarp.h rolnfade.h palinit.h display.h
 display.o: display.c display.h acidwarp.h handy.h
 img_float.o: img_float.c gen_img.c acidwarp.h
+draw.o: draw.c acidwarp.h
 ifneq (,$(findstring CYGWIN,$(PLATFORM)))
 acidwarp.ico: acidwarp.png
 	icotool -c -o $@ $^

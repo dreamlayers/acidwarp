@@ -34,10 +34,10 @@
 
 /* there are WAY too many global things here... */
 static int ROTATION_DELAY = 30000;
-/* GraphicsContext *physicalscreen; */
-static int show_logo = 1, image_time = 20;
-static int floating_point = 1, normalize = 1;
+static int show_logo = 1;
+static int image_time = 20;
 static int disp_flags = 0;
+static int draw_flags = DRAW_LOGO | DRAW_FLOAT | DRAW_SCALED;
 static int ready_to_draw = 0;
 static int width = 320, height = 200;
 UCHAR *buf_graf = NULL;
@@ -46,34 +46,15 @@ static int GO = TRUE;
 static int SKIP = FALSE;
 static int NP = FALSE; /* flag indicates new palette */
 static int LOCK = FALSE; /* flag indicates don't change to next image */
-static int imageFuncList[NUM_IMAGE_FUNCTIONS];
-static int imageFuncListIndex=0;
-#ifdef ENABLE_THREADS
-SDL_bool drawnext = SDL_FALSE;
-SDL_cond *drawnext_cond = NULL;
-SDL_bool drawdone = SDL_FALSE;
-SDL_cond *drawdone_cond = NULL;
-SDL_mutex *draw_mtx = NULL;
-static int drawing_main(void *param);
-SDL_Thread *drawing_thread = NULL;
-int abort_draw = 0;
-static int redraw_same = 0;
-#endif /* !EMSCRITPEN */
 
 /* Prototypes for forward referenced functions */
 static void printStrArray(char *strArray[]);
-static void makeShuffledList(int *list, int listSize);
-static void generate_image(int imageFuncNum, UCHAR *buf_graf,
-                           int xcenter, int ycenter,
-                           int width, int height,
-                           int colormax, int pitch);
 static void commandline(int argc, char *argv[]);
 static void mainLoop(void);
-static void redraw(void);
 
 void quit(int retcode)
 {
-  stopdrawing();
+  draw_quit();
   disp_quit();
   SDL_Quit();
   exit(retcode);
@@ -139,6 +120,8 @@ int main (int argc, char *argv[])
   
   disp_init(width, height, disp_flags);
 
+  draw_init(draw_flags);
+
 #ifdef EMSCRIPTEN
   emscripten_set_main_loop(mainLoop, 1000000/ROTATION_DELAY, 1);
 #else /* !EMSCRIPTEN */
@@ -150,17 +133,10 @@ int main (int argc, char *argv[])
   if (cond == NULL) {
     fatalSDLError("creating condition variable");
   }
-  draw_mtx = SDL_CreateMutex();
-  drawdone_cond = SDL_CreateCond();
-  drawnext_cond = SDL_CreateCond();
+
   if (SDL_AddTimer(ROTATION_DELAY / 1000, timerProc, cond) == 0) {
     fatalSDLError("adding timer");
   }
-  drawing_thread = SDL_CreateThread(drawing_main,
-#if SDL_VERSION_ATLEAST(2,0,0)
-                                    "DrawingThread",
-#endif
-                                    NULL);
   while(1) {
     mainLoop();
     if (SDL_LockMutex(mutex) != 0) {
@@ -201,13 +177,12 @@ static void mainLoop(void)
 
   switch (state) {
   case STATE_INITIAL:
-    makeShuffledList(imageFuncList, NUM_IMAGE_FUNCTIONS);
     ready_to_draw = 1;
     if (show_logo != 0) {
       /* Begin showing logo here. Logo continues to be shown
        * in STATE_DISPLAY, like any other image.
        */
-      redraw();
+      draw_next();
       initRolNFade(1);
       ltime = time(NULL);
       mtime = ltime + image_time;
@@ -221,7 +196,7 @@ static void mainLoop(void)
     /* Fall through */
   case STATE_NEXT:
     /* install a new image */
-    redraw();
+    draw_next();
 
     if (!SKIP) {
       newPalette();
@@ -305,112 +280,10 @@ void handleinput(enum acidwarp_command cmd)
     }
 }
 
-/* Drawing code which runs on separate thread */
-static void draw(int which) {
-  disp_beginUpdate();
-  if (which < 0) {
-    writeBitmapImageToArray(buf_graf, NOAHS_FACE, width, height,
-                            buf_graf_stride);
-  } else {
-    if (floating_point) {
-      generate_image_float(which,
-                           buf_graf, width/2, height/2, width, height,
-                           256, buf_graf_stride, normalize);
-    } else {
-      generate_image(which,
-                     buf_graf, width/2, height/2, width, height,
-                     256, buf_graf_stride);
-    }
-  }
-  disp_finishUpdate();
-}
-
-/* Drawing runs on separate thread, so as soon as one image is drawn to the
- * screen, the next can be computed in the background. This way, typical
- * image changes won't need to wait for drawing computations, which can be
- * slow when generating large images using floating point.
- */
-static int drawing_main(void *param) {
-  int displayed_img;
-  int draw_img = show_logo ? -1 : imageFuncList[imageFuncListIndex];
-  displayed_img = draw_img;
-  while (1) {
-    /* Draw next image to back buffer */
-    draw(draw_img);
-
-    /* Tell main thread that image is drawn */
-    SDL_LockMutex(draw_mtx);
-    drawdone = SDL_TRUE;
-    SDL_CondSignal(drawdone_cond);
-
-    /* Wait for next image */
-    while (!drawnext) {
-      SDL_CondWait(drawnext_cond, draw_mtx);
-    }
-    drawnext = SDL_FALSE;
-    SDL_UnlockMutex(draw_mtx);
-
-    if (redraw_same) {
-      draw_img = displayed_img;
-      redraw_same = 0;
-    } else {
-      /* move to the next image */
-      show_logo = 0;
-      if (++imageFuncListIndex >= NUM_IMAGE_FUNCTIONS) {
-        imageFuncListIndex = 0;
-        makeShuffledList(imageFuncList, NUM_IMAGE_FUNCTIONS);
-      }
-      displayed_img = draw_img;
-      draw_img = imageFuncList[imageFuncListIndex];
-    }
-  }
-  return 0;
-}
-
-void stopdrawing(void) {
-  if (drawing_thread != NULL) {
-    SDL_LockMutex(draw_mtx);
-    while (!drawdone) {
-      abort_draw = 1;
-      SDL_CondWait(drawdone_cond, draw_mtx);
-      abort_draw = 0;
-    }
-    drawdone = SDL_FALSE;
-    SDL_UnlockMutex(draw_mtx);
-  }
-}
-
-void redraw(void) {
-  /* Wait for image to finish drawing image */
-  SDL_LockMutex(draw_mtx);
-  while (!drawdone) {
-    SDL_CondWait(drawdone_cond, draw_mtx);
-  }
-  drawdone = SDL_FALSE;
-
-  /* This should actually display what the thread drew */
-  disp_swapBuffers();
-
-  drawnext = SDL_TRUE;
-  /* Tell drawing thread it can continue now that buffers are swapped */
-  SDL_CondSignal(drawnext_cond);
-  SDL_UnlockMutex(draw_mtx);
-}
-
-static void drawsame(void) {
-  redraw_same = 1;
-  drawnext = SDL_TRUE;
-  SDL_CondSignal(drawnext_cond);
-  SDL_UnlockMutex(draw_mtx);
-}
-
 void handleresize(int newwidth, int newheight)
 {
-  width = newwidth;
-  height = newheight;
   if (ready_to_draw) {
-    drawsame();
-    redraw();
+    draw_same();
     applyPalette();
   }
 }
@@ -435,6 +308,7 @@ static void commandline(int argc, char *argv[])
       else
       if(!strcmp("-n",argv[argNum])) {
         show_logo = 0;
+        draw_flags &= ~DRAW_LOGO;
       }
       else
       if(!strcmp("-f",argv[argNum])) {
@@ -446,11 +320,11 @@ static void commandline(int argc, char *argv[])
       }
       else
       if(!strcmp("-o",argv[argNum])) {
-        floating_point = 0;
+        draw_flags &= ~DRAW_FLOAT;
       }
       else
       if(!strcmp("-u",argv[argNum])) {
-        normalize = 0;
+        draw_flags &= ~DRAW_SCALED;
       }
       else
       if(!strcmp("-d",argv[argNum])) {
@@ -483,25 +357,3 @@ void printStrArray(char *strArray[])
   for (strPtr = strArray; **strPtr; ++strPtr)
     printf ("%s", *strPtr);
 }
-
-void makeShuffledList(int *list, int listSize)
-{
-  int entryNum, r;
-  
-  for (entryNum = 0; entryNum < listSize; ++entryNum)
-    list[entryNum] = -1;
-  
-  for (entryNum = 0; entryNum < listSize; ++entryNum)
-    {
-      do
-	r = RANDOM(listSize);
-      while (list[r] != -1);
-      
-      list[r] = entryNum;
-    }
-}
-
-/* Fixed point image generator using lookup tables goes here */
-#define mod(x, y) ((x) % (y))
-#define xor(x, y) ((x) ^ (y))
-#include "gen_img.c"

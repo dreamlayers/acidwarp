@@ -82,13 +82,14 @@ const GLchar fragment[] =
 #else /* !WITH_GL */
 static SDL_Surface *screen = NULL, *out_surf = NULL;
 #ifdef ENABLE_THREADS
-static UCHAR *buf_out = NULL;
+static UCHAR *out_buf = NULL;
 static SDL_Surface *draw_surf = NULL;
 #else /* !ENABLE_THREADS */
 #define draw_surf out_surf
 #endif /* !ENABLE_THREADS */
 static int disp_DrawingOnSurface;
 #endif /* !WITH_GL */
+static UCHAR *draw_buf = NULL;
 
 #ifdef HAVE_PALETTE
 static int disp_UsePalette;
@@ -174,7 +175,8 @@ void disp_setPalette(unsigned char *palette)
 #endif /* !WITH_GL */
 }
 
-void disp_beginUpdate(void)
+void disp_beginUpdate(UCHAR **p, unsigned int *pitch,
+                      unsigned int *w, unsigned int *h)
 {
 #ifndef WITH_GL
   /* Locking only needed at this point if drawing routines directly draw
@@ -186,10 +188,16 @@ void disp_beginUpdate(void)
         fatalSDLError("locking surface when starting update");
       }
     }
-    buf_graf = draw_surf->pixels;
-    buf_graf_stride = draw_surf->pitch;
-  }
+    *p = draw_surf->pixels;
+    *pitch = draw_surf->pitch;
+  } else
 #endif
+  {
+    *p = draw_buf;
+    *pitch = width;
+  }
+  *w = width;
+  *h = height;
 }
 
 void disp_finishUpdate(void)
@@ -200,7 +208,7 @@ void disp_finishUpdate(void)
    */
   if (disp_DrawingOnSurface) {
     if (SDL_MUSTLOCK(draw_surf)) SDL_UnlockSurface(draw_surf);
-    buf_graf = NULL;
+    draw_buf = NULL;
   }
 #endif
 }
@@ -211,9 +219,9 @@ static void disp_toSurface(void)
   int row;
   unsigned char *outp, *inp =
 #ifdef ENABLE_THREADS
-    buf_out;
+    out_buf;
 #else /* !ENABLE_THREADS */
-    buf_graf;
+    draw_buf;
 #endif
   /* This means drawing was on a separate buffer and it needs to be
    * copied to the surface. It also means the surface hasn't been locked.
@@ -260,14 +268,14 @@ void disp_swapBuffers(void)
   glActiveTexture(GL_TEXTURE1);
   glBindTexture(GL_TEXTURE_2D, indtex);
   glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_LUMINANCE,
-                  GL_UNSIGNED_BYTE, buf_graf);
+                  GL_UNSIGNED_BYTE, draw_buf);
 #else /* !WITH_GL */
   if (!disp_DrawingOnSurface) {
 #ifdef ENABLE_THREADS
     {
-      UCHAR *temp = buf_graf;
-      buf_graf = buf_out;
-      buf_out = temp;
+      UCHAR *temp = draw_buf;
+      draw_buf = out_buf;
+      out_buf = temp;
     }
 #endif /* ENABLE_THREADS */
     disp_toSurface();
@@ -381,7 +389,7 @@ static void display_redraw(void)
     SDL_Flip(screen);
 #endif
   } else {
-    /* Copy from buf_graf to screen */
+    /* Copy from draw_buf to screen */
     disp_beginUpdate();
     disp_finishUpdate();
   }
@@ -601,10 +609,9 @@ static void disp_allocateOffscreen(void)
   /* Drawing must not be happening in the background
    * while the memory being drawn to gets reallocated!
    */
-  stopdrawing();
+  draw_abort();
 #ifdef WITH_GL
-  disp_reallocBuffer(&buf_graf);
-  buf_graf_stride = width;
+  disp_reallocBuffer(&draw_buf);
 #else /* !WITH_GL */
   /* Free secondary surface */
   if (out_surf != screen) disp_freeSurface(&out_surf);
@@ -614,7 +621,7 @@ static void disp_allocateOffscreen(void)
 
 #ifdef HAVE_PALETTE
   if (disp_UsePalette) {
-    /* When using a real palette, buf_graf is used instead. */
+    /* When using a real palette, draw_buf is used instead. */
     out_surf = screen;
   } else
 #endif /* HAVE_PALETTE */
@@ -634,9 +641,9 @@ static void disp_allocateOffscreen(void)
 #endif
       ) {
     if (!disp_DrawingOnSurface) {
-      disp_freeBuffer(&buf_graf);
+      disp_freeBuffer(&draw_buf);
 #ifdef ENABLE_THREADS
-      disp_freeBuffer(&buf_out);
+      disp_freeBuffer(&out_buf);
 #endif /* ENABLE_THREADS */
     }
     disp_DrawingOnSurface = 1;
@@ -645,11 +652,10 @@ static void disp_allocateOffscreen(void)
 #endif /* ENABLE_THREADS */
   } else {
     disp_DrawingOnSurface = 0;
-    disp_reallocBuffer(&buf_graf);
+    disp_reallocBuffer(&draw_buf);
 #ifdef ENABLE_THREADS
-    disp_reallocBuffer(&buf_out);
+    disp_reallocBuffer(&out_buf);
 #endif /* ENABLE_THREADS */
-    buf_graf_stride = width;
   }
 #endif /* !WITH_GL */
 }
@@ -1048,7 +1054,7 @@ void disp_init(int newwidth, int newheight, int flags)
 void disp_quit(void)
 {
 #ifdef WITH_GL
-  disp_freeBuffer(&buf_graf);
+  disp_freeBuffer(&draw_buf);
   // FIXME: clean up OpenGL stuff
 #else /* !WITH_GL */
   if (disp_DrawingOnSurface) {
@@ -1061,9 +1067,9 @@ void disp_quit(void)
     disp_freeSurface(&draw_surf);
 #endif /* ENABLE_THREADS */
   } else {
-    disp_freeBuffer(&buf_graf);
+    disp_freeBuffer(&draw_buf);
 #ifdef ENABLE_THREADS
-    disp_freeBuffer(&buf_out);
+    disp_freeBuffer(&out_buf);
 #endif /* ENABLE_THREADS */
   }
   /* Do not free result of SDL_GetWindowSurface() or SDL_SetVideoMode() */
