@@ -51,9 +51,13 @@ static int LOCK = FALSE; /* flag indicates don't change to next image */
 static void printStrArray(char *strArray[]);
 static void commandline(int argc, char *argv[]);
 static void mainLoop(void);
+static void timer_quit(void);
 
 void quit(int retcode)
 {
+#ifndef EMSCRIPTEN
+  timer_quit();
+#endif
   draw_quit();
   disp_quit();
   SDL_Quit();
@@ -67,10 +71,80 @@ void fatalSDLError(const char *msg)
 }
 
 #ifndef EMSCRIPTEN
-static Uint32 timerProc(Uint32 interval, void *param)
+#define TIMER_INTERVAL (ROTATION_DELAY / 1000)
+static struct {
+  SDL_cond *cond;
+  SDL_mutex *mutex;
+  SDL_TimerID timer_id;
+  SDL_bool flag;
+} timer_data = { NULL, NULL, 0, SDL_FALSE };
+
+static void timer_lock(void)
 {
-  SDL_CondSignal((SDL_cond *)param);
-  return ROTATION_DELAY / 1000;
+  if (SDL_LockMutex(timer_data.mutex) != 0) {
+    fatalSDLError("locking timer mutex");
+  }
+}
+
+static void timer_unlock(void)
+{
+  if (SDL_UnlockMutex(timer_data.mutex) != 0) {
+    fatalSDLError("unlocking timer mutex");
+  }
+}
+
+static Uint32 timer_proc(Uint32 interval, void *param)
+{
+  timer_lock();
+  timer_data.flag = SDL_TRUE;
+  SDL_CondSignal(timer_data.cond);
+  timer_unlock();
+  return TIMER_INTERVAL;
+}
+
+static void timer_init(void)
+{
+  timer_data.mutex = SDL_CreateMutex();
+  if (timer_data.mutex == NULL) {
+    fatalSDLError("creating timer mutex");
+  }
+  timer_data.cond = SDL_CreateCond();
+  if (timer_data.cond == NULL) {
+    fatalSDLError("creating timer condition variable");
+  }
+  timer_data.timer_id = SDL_AddTimer(TIMER_INTERVAL, timer_proc,
+                                     timer_data.cond);
+  if (timer_data.timer_id == 0) {
+    fatalSDLError("adding timer");
+  }
+}
+
+static void timer_quit(void)
+{
+  if (timer_data.timer_id != 0) {
+    SDL_RemoveTimer(timer_data.timer_id);
+    timer_data.timer_id = 0;
+  }
+  if (timer_data.cond != NULL) {
+    SDL_DestroyCond(timer_data.cond);
+    timer_data.cond = 0;
+  }
+  if (timer_data.mutex != NULL) {
+    SDL_DestroyMutex(timer_data.mutex);
+    timer_data.mutex = NULL;
+  }
+}
+
+static void timer_wait(void)
+{
+  timer_lock();
+  while (!timer_data.flag) {
+    if (SDL_CondWait(timer_data.cond, timer_data.mutex) != 0) {
+      fatalSDLError("waiting on condition");
+    }
+  }
+  timer_data.flag = SDL_FALSE;
+  timer_unlock();
 }
 #endif /* !EMSCRIPTEN */
 
@@ -89,10 +163,7 @@ int main (int argc, char *argv[])
     Module.screenIsReadOnly = true;
   });
 #endif
-#else /* !EMSCRIPTEN */
-  SDL_cond *cond;
-  SDL_mutex *mutex;
-#endif /* !EMSCRIPTEN */
+#endif /* EMSCRIPTEN */
 
   /* Initialize SDL */
   if ( SDL_Init(SDL_INIT_VIDEO
@@ -125,26 +196,10 @@ int main (int argc, char *argv[])
 #ifdef EMSCRIPTEN
   emscripten_set_main_loop(mainLoop, 1000000/ROTATION_DELAY, 1);
 #else /* !EMSCRIPTEN */
-  mutex = SDL_CreateMutex();
-  if (mutex == NULL) {
-    fatalSDLError("creating mutex");
-  }
-  cond = SDL_CreateCond();
-  if (cond == NULL) {
-    fatalSDLError("creating condition variable");
-  }
-
-  if (SDL_AddTimer(ROTATION_DELAY / 1000, timerProc, cond) == 0) {
-    fatalSDLError("adding timer");
-  }
+  timer_init();
   while(1) {
     mainLoop();
-    if (SDL_LockMutex(mutex) != 0) {
-      fatalSDLError("locking mutex");
-    }
-    if (SDL_CondWait(cond, mutex) != 0) {
-      fatalSDLError("waiting on condition");
-    }
+    timer_wait();
   }
 #endif /* !EMSCRIPTEN */
 }
