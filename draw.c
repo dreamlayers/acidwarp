@@ -40,6 +40,7 @@ static SDL_mutex *draw_mtx = NULL;
 static int drawing_main(void *param);
 static SDL_Thread *drawing_thread = NULL;
 int abort_draw = 0;
+int quit_draw = 0;
 static int redraw_same = 0;
 #endif /* !EMSCRITPEN */
 
@@ -113,6 +114,8 @@ static int drawing_main(void *param) {
     drawnext = SDL_FALSE;
     SDL_UnlockMutex(draw_mtx);
 
+    if (quit_draw) break;
+
     if (redraw_same) {
       draw_img = displayed_img;
       redraw_same = 0;
@@ -154,37 +157,65 @@ void draw_next(void) {
   /* This should actually display what the thread drew */
   disp_swapBuffers();
 
-  drawnext = SDL_TRUE;
   /* Tell drawing thread it can continue now that buffers are swapped */
+  drawnext = SDL_TRUE;
+  SDL_CondSignal(drawnext_cond);
+  SDL_UnlockMutex(draw_mtx);
+}
+
+static void draw_continue(void) {
+  SDL_LockMutex(draw_mtx);
+  drawnext = SDL_TRUE;
   SDL_CondSignal(drawnext_cond);
   SDL_UnlockMutex(draw_mtx);
 }
 
 void draw_same(void) {
   redraw_same = 1;
-  drawnext = SDL_TRUE;
-  SDL_CondSignal(drawnext_cond);
-  SDL_UnlockMutex(draw_mtx);
+  draw_continue();
   draw_next();
 }
 
 void draw_init(int draw_flags) {
   flags = draw_flags;
-  draw_mtx = SDL_CreateMutex();
-  drawdone_cond = SDL_CreateCond();
-  drawnext_cond = SDL_CreateCond();
+  abort_draw = 0;
+  quit_draw = 0;
+  if (!(draw_mtx = SDL_CreateMutex()) ||
+      !(drawdone_cond = SDL_CreateCond()) ||
+      !(drawnext_cond = SDL_CreateCond()))
+    fatalSDLError("creating drawing synchronization primitives");
   drawing_thread = SDL_CreateThread(drawing_main,
 #if SDL_VERSION_ATLEAST(2,0,0)
                                     "DrawingThread",
 #endif
                                     NULL);
+  if (drawing_thread == NULL)
+    fatalSDLError("creating drawing thread");
   /* TODO check SDL errors */
   makeShuffledList(imageFuncList, NUM_IMAGE_FUNCTIONS);
 }
 
 void draw_quit(void) {
-  draw_abort();
-  /* TODO free stuff here */
+  if (drawing_thread != NULL) {
+    int status;
+    quit_draw = 1;
+    draw_abort();
+    draw_continue();
+    SDL_WaitThread(drawing_thread, &status);
+    drawing_thread = NULL;
+  }
+  if (drawdone_cond != NULL) {
+    SDL_DestroyCond(drawdone_cond);
+    drawdone_cond = NULL;
+  }
+  if (drawnext_cond != NULL) {
+    SDL_DestroyCond(drawnext_cond);
+    drawnext_cond = NULL;
+  }
+  if (draw_mtx != NULL) {
+    SDL_DestroyMutex(draw_mtx);
+    draw_mtx = NULL;
+  }
 }
 
 /* Fixed point image generator using lookup tables goes here */
