@@ -51,13 +51,15 @@ static int LOCK = FALSE; /* flag indicates don't change to next image */
 static void printStrArray(char *strArray[]);
 static void commandline(int argc, char *argv[]);
 static void mainLoop(void);
+#ifndef EMSCRIPTEN
 static void timer_quit(void);
+#endif /* !EMSCRIPTEN */
 
 void quit(int retcode)
 {
 #ifndef EMSCRIPTEN
   timer_quit();
-#endif
+#endif /* !EMSCRIPTEN */
   draw_quit();
   disp_quit();
   SDL_Quit();

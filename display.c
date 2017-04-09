@@ -606,10 +606,12 @@ static void disp_allocSurface(SDL_Surface **surf)
 
 static void disp_allocateOffscreen(void)
 {
+#ifdef ENABLE_THREADS
   /* Drawing must not be happening in the background
    * while the memory being drawn to gets reallocated!
    */
   draw_abort();
+#endif /* ENABLE_THREADS */
 #ifdef WITH_GL
   disp_reallocBuffer(&draw_buf);
 #else /* !WITH_GL */

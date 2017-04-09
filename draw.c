@@ -42,7 +42,7 @@ static SDL_Thread *drawing_thread = NULL;
 int abort_draw = 0;
 int quit_draw = 0;
 static int redraw_same = 0;
-#endif /* !EMSCRITPEN */
+#endif /* !ENABLE_THREADS */
 
 /* Prototypes for forward referenced functions */
 static void generate_image(int imageFuncNum, UCHAR *buf_graf,
@@ -89,6 +89,16 @@ static void makeShuffledList(int *list, int listSize)
     }
 }
 
+static void draw_advance(void)
+{
+  flags &= ~DRAW_LOGO;
+  if (++imageFuncListIndex >= NUM_IMAGE_FUNCTIONS) {
+    imageFuncListIndex = 0;
+    makeShuffledList(imageFuncList, NUM_IMAGE_FUNCTIONS);
+  }
+}
+
+#ifdef ENABLE_THREADS
 /* Drawing runs on separate thread, so as soon as one image is drawn to the
  * screen, the next can be computed in the background. This way, typical
  * image changes won't need to wait for drawing computations, which can be
@@ -121,11 +131,7 @@ static int drawing_main(void *param) {
       redraw_same = 0;
     } else {
       /* move to the next image */
-      flags &= ~DRAW_LOGO;
-      if (++imageFuncListIndex >= NUM_IMAGE_FUNCTIONS) {
-        imageFuncListIndex = 0;
-        makeShuffledList(imageFuncList, NUM_IMAGE_FUNCTIONS);
-      }
+      draw_advance();
       displayed_img = draw_img;
       draw_img = imageFuncList[imageFuncListIndex];
     }
@@ -175,9 +181,22 @@ void draw_same(void) {
   draw_continue();
   draw_next();
 }
+#else /* !ENABLE_THREADS */
+void draw_same(void) {
+  draw((flags & DRAW_LOGO) ? -1 : imageFuncList[imageFuncListIndex]);
+  disp_swapBuffers();
+}
+
+void draw_next(void) {
+  draw_advance();
+  draw_same();
+}
+#endif /* !ENABLE_THREADS */
 
 void draw_init(int draw_flags) {
   flags = draw_flags;
+  makeShuffledList(imageFuncList, NUM_IMAGE_FUNCTIONS);
+#ifdef ENABLE_THREADS
   abort_draw = 0;
   quit_draw = 0;
   if (!(draw_mtx = SDL_CreateMutex()) ||
@@ -192,10 +211,11 @@ void draw_init(int draw_flags) {
   if (drawing_thread == NULL)
     fatalSDLError("creating drawing thread");
   /* TODO check SDL errors */
-  makeShuffledList(imageFuncList, NUM_IMAGE_FUNCTIONS);
+#endif /* ENABLE_THREADS */
 }
 
 void draw_quit(void) {
+#ifdef ENABLE_THREADS
   if (drawing_thread != NULL) {
     int status;
     quit_draw = 1;
@@ -216,6 +236,7 @@ void draw_quit(void) {
     SDL_DestroyMutex(draw_mtx);
     draw_mtx = NULL;
   }
+#endif /* ENABLE_THREADS */
 }
 
 /* Fixed point image generator using lookup tables goes here */
