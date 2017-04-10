@@ -4,24 +4,10 @@
  * Ported to SDL by Boris Gjenero
  */
 
-#ifndef __APPLE__
-#include <malloc.h>
-#endif
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <unistd.h>
-#ifdef EMSCRIPTEN
-#include <emscripten.h>
-#endif
-
 #include <SDL.h>
-#include <SDL_main.h>
 
 #include "handy.h"
 #include "acidwarp.h"
-#include "lut.h"
 #include "bit_map.h"
 #include "display.h"
 
@@ -42,15 +28,8 @@ static SDL_Thread *drawing_thread = NULL;
 int abort_draw = 0;
 int quit_draw = 0;
 static int redraw_same = 0;
-#endif /* !ENABLE_THREADS */
+#endif /* ENABLE_THREADS */
 
-/* Prototypes for forward referenced functions */
-static void generate_image(int imageFuncNum, UCHAR *buf_graf,
-                           int xcenter, int ycenter,
-                           int width, int height,
-                           int colormax, int pitch);
-
-/* Drawing code which runs on separate thread */
 static void draw(int which) {
   UCHAR *buf_graf;
   unsigned int buf_graf_stride, width, height;
@@ -238,8 +217,3 @@ void draw_quit(void) {
   }
 #endif /* ENABLE_THREADS */
 }
-
-/* Fixed point image generator using lookup tables goes here */
-#define mod(x, y) ((x) % (y))
-#define xor(x, y) ((x) ^ (y))
-#include "gen_img.c"

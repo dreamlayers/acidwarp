@@ -1,7 +1,7 @@
 PREFIX := /usr/local
 CFLAGS := -g -O2 -Wall -Wmissing-prototypes
 SOURCES := acidwarp.c bit_map.c lut.c palinit.c rolnfade.c display.c \
-           img_float.c draw.c
+           img_int.c img_float.c draw.c
 OBJECTS := $(SOURCES:%.c=%.o)
 ifeq ($(GL),1)
 # OpenGL ES / WebGL builds require SDL 2
