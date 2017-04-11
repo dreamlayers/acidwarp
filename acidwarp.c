@@ -37,7 +37,7 @@ static int ROTATION_DELAY = 30000;
 static int show_logo = 1;
 static int image_time = 20;
 static int disp_flags = 0;
-static int draw_flags = DRAW_LOGO | DRAW_FLOAT | DRAW_SCALED;
+static int draw_flags = DRAW_FLOAT | DRAW_SCALED;
 static int ready_to_draw = 0;
 static int width = 320, height = 200;
 UCHAR *buf_graf = NULL;
@@ -193,8 +193,6 @@ int main (int argc, char *argv[])
   
   disp_init(width, height, disp_flags);
 
-  draw_init(draw_flags);
-
 #ifdef EMSCRIPTEN
   emscripten_set_main_loop(mainLoop, 1000000/ROTATION_DELAY, 1);
 #else /* !EMSCRIPTEN */
@@ -220,11 +218,11 @@ static void mainLoop(void)
 
   if (SKIP) {
     if (state == STATE_INITIAL) {
-      show_logo = 0;
       SKIP = FALSE;
     } else {
       state = STATE_NEXT;
     }
+    show_logo = 0;
   }
 
   if(NP) {
@@ -234,6 +232,7 @@ static void mainLoop(void)
 
   switch (state) {
   case STATE_INITIAL:
+    draw_init(draw_flags | (show_logo ? DRAW_LOGO : 0));
     ready_to_draw = 1;
     if (show_logo != 0) {
       /* Begin showing logo here. Logo continues to be shown
@@ -284,6 +283,7 @@ static void mainLoop(void)
     /* fade out */
     if(GO) {
       if (fadeOut()) {
+        show_logo = 0;
         state = STATE_NEXT;
       }
     }
@@ -365,7 +365,6 @@ static void commandline(int argc, char *argv[])
       else
       if(!strcmp("-n",argv[argNum])) {
         show_logo = 0;
-        draw_flags &= ~DRAW_LOGO;
       }
       else
       if(!strcmp("-f",argv[argNum])) {
