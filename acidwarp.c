@@ -97,11 +97,12 @@ static void timer_unlock(void)
 
 static Uint32 timer_proc(Uint32 interval, void *param)
 {
+  unsigned int tmint = TIMER_INTERVAL;
   timer_lock();
   timer_data.flag = SDL_TRUE;
   SDL_CondSignal(timer_data.cond);
   timer_unlock();
-  return TIMER_INTERVAL;
+  return tmint ? tmint : 1;
 }
 
 static void timer_init(void)
