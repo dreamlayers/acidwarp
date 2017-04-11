@@ -48,7 +48,7 @@ void quit(int retcode);
 
 #define DRAW_LOGO 1
 #define DRAW_FLOAT 2
-#define DRAW_SCALED 3
+#define DRAW_SCALED 4
 void draw_init(int flags);
 void draw_same(void);
 void draw_next(void);
