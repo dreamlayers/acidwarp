@@ -329,11 +329,24 @@ void handleinput(enum acidwarp_command cmd)
       break;
     case CMD_PAL_FASTER:
       ROTATION_DELAY = ROTATION_DELAY - 5000;
+#ifdef EMSCRIPTEN
+      if (ROTATION_DELAY < 1)
+        ROTATION_DELAY = 1;
+      emscripten_cancel_main_loop();
+      emscripten_set_main_loop(mainLoop, 1000000/ROTATION_DELAY, 0);
+#else // !EMSCRIPTEN
       if (ROTATION_DELAY < 0)
 	ROTATION_DELAY = 0;
+#endif // !EMSCRIPTEN
       break;
     case CMD_PAL_SLOWER:
       ROTATION_DELAY = ROTATION_DELAY + 5000;
+#ifdef EMSCRIPTEN
+      if (ROTATION_DELAY > 1000000)
+        ROTATION_DELAY = 1000000;
+      emscripten_cancel_main_loop();
+      emscripten_set_main_loop(mainLoop, 1000000/ROTATION_DELAY, 0);
+#endif
       break;
     }
 }
