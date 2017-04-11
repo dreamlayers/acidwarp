@@ -28,7 +28,9 @@ static SDL_Thread *drawing_thread = NULL;
 int abort_draw = 0;
 int quit_draw = 0;
 static int redraw_same = 0;
-#endif /* ENABLE_THREADS */
+#else /* !ENABLE_THREADS */
+static int draw_first = 0;
+#endif /* !ENABLE_THREADS */
 
 static void draw(int which) {
   UCHAR *buf_graf;
@@ -167,7 +169,11 @@ void draw_same(void) {
 }
 
 void draw_next(void) {
-  draw_advance();
+  if (draw_first) {
+    draw_first = 0;
+  } else {
+    draw_advance();
+  }
   draw_same();
 }
 #endif /* !ENABLE_THREADS */
@@ -190,7 +196,9 @@ void draw_init(int draw_flags) {
   if (drawing_thread == NULL)
     fatalSDLError("creating drawing thread");
   /* TODO check SDL errors */
-#endif /* ENABLE_THREADS */
+#else /* !ENABLE_THREADS */
+  draw_first = 1;
+#endif /* !ENABLE_THREADS */
 }
 
 void draw_quit(void) {
