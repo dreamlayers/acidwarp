@@ -36,8 +36,9 @@ CC = emcc
 ifeq ($(SDL),2)
 CFLAGS += -s USE_SDL=2
 endif
-EXESUFFIX = .html
-LDFLAGS := $(CFLAGS)
+TARGET := acidwarp.html
+$(TARGET): template.html
+LDFLAGS := $(CFLAGS) --shell-file template.html
 
 else
 
@@ -68,15 +69,16 @@ OBJECTS += acid_res.o
 endif
 
 LDFLAGS = $(CFLAGS)
+TARGET = acidwarp$(EXESUFFIX)
 endif
 
 LINK = $(CC)
-TARGET = acidwarp$(EXESUFFIX)
+
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
 	@rm -f $(TARGET)
-	$(LINK) $(LDFLAGS) $^ -o $@ $(LIBS)
+	$(LINK) $(LDFLAGS) $(OBJECTS) -o $@ $(LIBS)
 
 acidwarp.o: acidwarp.c handy.h acidwarp.h lut.h bit_map.h \
  palinit.h rolnfade.h warp_text.c display.h gen_img.c

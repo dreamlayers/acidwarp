@@ -191,6 +191,8 @@ int main (int argc, char *argv[])
     Module.screenIsReadOnly = true;
   });
 #endif
+  width = EM_ASM_INT_V({ return document.getElementById('canvas').scrollWidth; });
+  height = EM_ASM_INT_V({ return document.getElementById('canvas').scrollHeight; });
 #endif /* EMSCRIPTEN */
 
   /* Initialize SDL */
