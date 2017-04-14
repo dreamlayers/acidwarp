@@ -31,6 +31,10 @@
 #include "acidwarp.h"
 #include "display.h"
 
+#if defined(HAVE_FULLSCREEN) && defined(EMSCRIPTEN)
+#include <emscripten/html5.h>
+#endif
+
 #if !defined(WIN32) && !SDL_VERSION_ATLEAST(2,0,0)
 #define HAVE_PALETTE
 #endif
@@ -396,6 +400,20 @@ static void display_redraw(void)
 #endif /* !WITH_GL */
 }
 
+#if defined(HAVE_FULLSCREEN) && defined(EMSCRIPTEN)
+/* Full screen toggle must occur in event handler */
+static EMSCRIPTEN_RESULT disp_dblClick(int eventType,
+                                       const EmscriptenMouseEvent *mouseEvent,
+                                       void *userData)
+{
+  if (eventType == EMSCRIPTEN_EVENT_DBLCLICK &&
+      mouseEvent->button == 0) {
+    disp_toggleFullscreen();
+  }
+  return EMSCRIPTEN_RESULT_SUCCESS;
+}
+#endif /* HAVE_FULLSCREEN && EMSCRIPTEN */
+
 void disp_processInput(void) {
   SDL_Event event;
 
@@ -406,7 +424,7 @@ void disp_processInput(void) {
         display_redraw();
         break;
 #endif /* !SDL_VERSION_ATLEAST(2,0,0) */
-#ifdef HAVE_FULLSCREEN
+#if defined(HAVE_FULLSCREEN) && !defined(EMSCRIPTEN)
       /* SDL full screen switching has no useful effect with Emscripten */
       case SDL_MOUSEBUTTONDOWN:
         if (event.button.button == SDL_BUTTON_LEFT) {
@@ -825,6 +843,9 @@ void disp_init(int newwidth, int newheight, int flags)
 
   if (!inited) {
 #ifdef HAVE_FULLSCREEN
+#ifdef EMSCRIPTEN
+    emscripten_set_dblclick_callback(NULL, NULL, EM_FALSE, disp_dblClick));
+#endif /* EMSCRIPTEN */
     if (flags & DISP_DESKTOP_RES_FS) {
       /* Need to know later when entering full screen another time */
       desktopfs = TRUE;

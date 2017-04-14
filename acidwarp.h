@@ -7,6 +7,7 @@
 #ifdef EMSCRIPTEN
 #define ENABLE_WORKER
 #else /* !EMSCRIPTEN */
+/* Full screen doesn't work with Emscripten. Use F11 instead. */
 #define HAVE_FULLSCREEN
 #define ENABLE_THREADS
 #endif
