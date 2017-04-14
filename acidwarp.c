@@ -234,20 +234,7 @@ static void mainLoop(void)
   switch (state) {
   case STATE_INITIAL:
     draw_init(draw_flags | (show_logo ? DRAW_LOGO : 0));
-    ready_to_draw = 1;
-    if (show_logo != 0) {
-      /* Begin showing logo here. Logo continues to be shown
-       * in STATE_DISPLAY, like any other image.
-       */
-      draw_next();
-      initRolNFade(1);
-      ltime = time(NULL);
-      mtime = ltime + image_time;
-      state = STATE_DISPLAY;
-      break;
-    } else {
-      initRolNFade(0);
-    }
+    initRolNFade(show_logo);
 
     state = STATE_NEXT;
     /* Fall through */
@@ -255,10 +242,11 @@ static void mainLoop(void)
     /* install a new image */
     draw_next();
 
-    if (!SKIP) {
+    if (ready_to_draw && !SKIP) {
       newPalette();
     }
     SKIP = FALSE;
+    ready_to_draw = 1;
     
     ltime = time(NULL);
     mtime = ltime + image_time;
