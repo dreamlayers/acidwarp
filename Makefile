@@ -1,6 +1,7 @@
 PREFIX := /usr/local
 CFLAGS := -O3 -Wall -Wmissing-prototypes
 SOURCES := acidwarp.c palinit.c rolnfade.c display.c
+IMGGEN_SOURCES := bit_map.c lut.c img_int.c img_float.c
 OBJECTS = $(SOURCES:%.c=%.o)
 
 ifeq ($(GL),1)
@@ -24,7 +25,7 @@ SDL_CONFIG := sdl-config
 endif
 
 ifeq ($(PLATFORM),Emscripten)
-WORKER_SOURCES := bit_map.c lut.c img_int.c img_float.c worker.c
+WORKER_SOURCES := $(IMGGEN_SOURCES) worker.c
 WORKER_LDFLAGS := $(CFLAGS) -s BUILD_AS_WORKER=1
 WORKER_OBJECTS := $(WORKER_SOURCES:%.c=%.o)
 SOURCES += useworker.c
@@ -41,6 +42,8 @@ $(TARGET): template.html
 LDFLAGS := $(CFLAGS) --shell-file template.html -s TOTAL_MEMORY=33554432
 
 else
+
+SOURCES += $(IMGGEN_SOURCES) draw.c
 
 CONVERTEXISTS := $(shell command -v convert > /dev/null 2>&1 && \
                    convert -version 2> /dev/null | grep ImageMagick)
