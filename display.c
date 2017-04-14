@@ -889,7 +889,7 @@ void disp_init(int newwidth, int newheight, int flags)
 
   /* This may be unnecessary if switching between windowed
    * and full screen mode with the same dimensions. */
-  handleresize(width, height);
+  handleinput(CMD_RESIZE);
 }
 
 #else /* !SDL_VERSION_ATLEAST(2,0,0) */
@@ -1049,7 +1049,7 @@ void disp_init(int newwidth, int newheight, int flags)
 
   /* This may be unnecessary if switching between windowed
    * and full screen mode with the same dimensions. */
-  handleresize(width, height);
+  handleinput(CMD_RESIZE);
 }
 #endif /* !SDL_VERSION_ATLEAST(2,0,0) */
 

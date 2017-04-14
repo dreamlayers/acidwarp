@@ -38,14 +38,21 @@ static int show_logo = 1;
 static int image_time = 20;
 static int disp_flags = 0;
 static int draw_flags = DRAW_FLOAT | DRAW_SCALED;
-static int ready_to_draw = 0;
+#if defined(EMSCRIPTEN) && SDL_VERSION_ATLEAST(2,0,0)
+/* Intent is to set size to the browser window. This must not accidentally
+ * match the current window size, or else resizing would break.
+ */
+static int width = 0, height = 0;
+#else
 static int width = 320, height = 200;
+#endif
 UCHAR *buf_graf = NULL;
 unsigned int buf_graf_stride = 0;
 static int GO = TRUE;
 static int SKIP = FALSE;
 static int NP = FALSE; /* flag indicates new palette */
 static int LOCK = FALSE; /* flag indicates don't change to next image */
+static int RESIZE = FALSE;
 
 /* Prototypes for forward referenced functions */
 static void printStrArray(char *strArray[]);
@@ -178,8 +185,7 @@ static void timer_wait(void)
 
 int main (int argc, char *argv[])
 {
-#ifdef EMSCRIPTEN
-#if !SDL_VERSION_ATLEAST(2,0,0)
+#if defined(EMSCRIPTEN) && !SDL_VERSION_ATLEAST(2,0,0)
   /* https://dreamlayers.blogspot.ca/2015/04/optimizing-emscripten-sdl-1-settings.html
    * SDL.defaults.opaqueFrontBuffer = false; wouldn't work because alpha
    * values are not set.
@@ -190,10 +196,7 @@ int main (int argc, char *argv[])
     SDL.defaults.opaqueFrontBuffer = false;
     Module.screenIsReadOnly = true;
   });
-#endif
-  width = EM_ASM_INT_V({ return document.getElementById('canvas').scrollWidth; });
-  height = EM_ASM_INT_V({ return document.getElementById('canvas').scrollHeight; });
-#endif /* EMSCRIPTEN */
+#endif /* EMSCRIPTEN && !SDL_VERSION_ATLEAST(2,0,0) */
 
   /* Initialize SDL */
   if ( SDL_Init(SDL_INIT_VIDEO
@@ -247,12 +250,20 @@ static void mainLoop(void)
 
   disp_processInput();
 
-  if (SKIP) {
-    if (state == STATE_INITIAL) {
-      SKIP = FALSE;
-    } else {
-      state = STATE_NEXT;
+  if (RESIZE) {
+    RESIZE = FALSE;
+    if (state != STATE_INITIAL) {
+      draw_same();
+      applyPalette();
+#if defined(EMSCRIPTEN) && defined(ENABLE_WORKER)
+      /* Draw will cancel main thread and restart it when image is received. */
+      return;
+#endif /* EMSCRIPTEN && ENABLE_WORKER */
     }
+  }
+
+  if (SKIP) {
+    if (state != STATE_INITIAL) state = STATE_NEXT;
     show_logo = 0;
   }
 
@@ -266,17 +277,15 @@ static void mainLoop(void)
     draw_init(draw_flags | (show_logo ? DRAW_LOGO : 0));
     initRolNFade(show_logo);
 
-    state = STATE_NEXT;
     /* Fall through */
   case STATE_NEXT:
     /* install a new image */
     draw_next();
 
-    if (ready_to_draw && !SKIP) {
+    if (state != STATE_INITIAL && !SKIP) {
       newPalette();
     }
     SKIP = FALSE;
-    ready_to_draw = 1;
 
 #if defined(EMSCRIPTEN) && defined(ENABLE_WORKER)
     /* The worker has been called. Main loop is cancelled and will be restarted
@@ -375,15 +384,10 @@ void handleinput(enum acidwarp_command cmd)
       startloop();
 #endif
       break;
+    case CMD_RESIZE:
+      RESIZE = TRUE;
+      break;
     }
-}
-
-void handleresize(int newwidth, int newheight)
-{
-  if (ready_to_draw) {
-    draw_same();
-    applyPalette();
-  }
 }
 
 static void commandline(int argc, char *argv[])

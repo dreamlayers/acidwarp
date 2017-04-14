@@ -38,7 +38,7 @@ CFLAGS += -s USE_SDL=2
 endif
 TARGET := acidwarp.html
 $(TARGET): template.html
-LDFLAGS := $(CFLAGS) --shell-file template.html
+LDFLAGS := $(CFLAGS) --shell-file template.html -s TOTAL_MEMORY=33554432
 
 else
 
@@ -106,7 +106,7 @@ acid_ico.c: acidwarp.rgb
 
 clean:
 	$(RM) *.o $(TARGET) acidwarp.ico acidwarp.rgb acid_ico.c \
-          acidwarp.html.mem acidwarp.js
+          acidwarp.html.mem acidwarp.js worker.js worker.js.mem
 
 install: $(TARGET) acidwarp.png acidwarp.desktop
 	install $< $(PREFIX)/bin

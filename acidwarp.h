@@ -35,11 +35,11 @@ enum acidwarp_command {
   CMD_NEWPAL,
   CMD_LOCK,
   CMD_PAL_FASTER,
-  CMD_PAL_SLOWER
+  CMD_PAL_SLOWER,
+  CMD_RESIZE
 };
 
 void handleinput(enum acidwarp_command cmd);
-void handleresize(int newwidth, int newheight);
 void generate_image_float(int imageFuncNum, UCHAR *buf_graf,
                           int xcenter, int ycenter,
                           int width, int height,
