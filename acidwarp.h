@@ -4,7 +4,9 @@
 
 #define DIRECTN_CHANGE_PERIOD_IN_TICKS               256
 
-#if !defined(EMSCRIPTEN)
+#ifdef EMSCRIPTEN
+#define ENABLE_WORKER
+#else /* !EMSCRIPTEN */
 #define HAVE_FULLSCREEN
 #define ENABLE_THREADS
 #endif
@@ -22,6 +24,9 @@
 #define GREEN 1
 #define BLUE 2
 #define NUM_PALETTE_TYPES       8
+
+#define NUM_IMAGE_FUNCTIONS 40
+#define NOAHS_FACE   0
 
 enum acidwarp_command {
   CMD_PAUSE = 1,
@@ -45,6 +50,10 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
                     int colors, int pitch);
 void fatalSDLError(const char *msg);
 void quit(int retcode);
+void makeShuffledList(int *list, int listSize);
+#ifdef ENABLE_WORKER
+void startloop(void);
+#endif
 
 #define DRAW_LOGO 1
 #define DRAW_FLOAT 2

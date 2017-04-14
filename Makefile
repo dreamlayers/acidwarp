@@ -1,8 +1,8 @@
 PREFIX := /usr/local
 CFLAGS := -g -O2 -Wall -Wmissing-prototypes
-SOURCES := acidwarp.c bit_map.c lut.c palinit.c rolnfade.c display.c \
-           img_int.c img_float.c draw.c
-OBJECTS := $(SOURCES:%.c=%.o)
+SOURCES := acidwarp.c palinit.c rolnfade.c display.c
+OBJECTS = $(SOURCES:%.c=%.o)
+
 ifeq ($(GL),1)
 # OpenGL ES / WebGL builds require SDL 2
 SDL := 2
@@ -24,12 +24,21 @@ SDL_CONFIG := sdl-config
 endif
 
 ifeq ($(PLATFORM),Emscripten)
+WORKER_SOURCES := bit_map.c lut.c img_int.c img_float.c worker.c
+WORKER_LDFLAGS := $(CFLAGS) -s BUILD_AS_WORKER=1
+WORKER_OBJECTS := $(WORKER_SOURCES:%.c=%.o)
+SOURCES += useworker.c
+all: worker.js
+worker.js: $(WORKER_OBJECTS)
+	@rm -f $@
+	$(LINK) $(WORKER_LDFLAGS) $^ -o $@
 CC = emcc
 ifeq ($(SDL),2)
 CFLAGS += -s USE_SDL=2
 endif
 EXESUFFIX = .html
 LDFLAGS := $(CFLAGS)
+
 else
 
 CONVERTEXISTS := $(shell command -v convert > /dev/null 2>&1 && \
@@ -37,7 +46,6 @@ CONVERTEXISTS := $(shell command -v convert > /dev/null 2>&1 && \
 ifdef CONVERTEXISTS
 CFLAGS += -DADDICON
 SOURCES += acid_ico.c
-OBJECTS += acid_ico.o
 endif
 
 CFLAGS += $(shell $(SDL_CONFIG) --cflags)
@@ -64,6 +72,7 @@ endif
 
 LINK = $(CC)
 TARGET = acidwarp$(EXESUFFIX)
+all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
 	@rm -f $(TARGET)

@@ -11,9 +11,6 @@
 #include "bit_map.h"
 #include "display.h"
 
-#define NUM_IMAGE_FUNCTIONS 40
-#define NOAHS_FACE   0
-
 static int imageFuncList[NUM_IMAGE_FUNCTIONS];
 static int imageFuncListIndex=0;
 static int flags = 0;
@@ -51,23 +48,6 @@ static void draw(int which) {
     }
   }
   disp_finishUpdate();
-}
-
-static void makeShuffledList(int *list, int listSize)
-{
-  int entryNum, r;
-
-  for (entryNum = 0; entryNum < listSize; ++entryNum)
-    list[entryNum] = -1;
-
-  for (entryNum = 0; entryNum < listSize; ++entryNum)
-    {
-      do
-        r = RANDOM(listSize);
-      while (list[r] != -1);
-
-      list[r] = entryNum;
-    }
 }
 
 static void draw_advance(void)

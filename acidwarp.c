@@ -72,7 +72,32 @@ void fatalSDLError(const char *msg)
   quit(-1);
 }
 
-#ifndef EMSCRIPTEN
+/* Used by both ordinary and Emscripten worker drawing code */
+void makeShuffledList(int *list, int listSize)
+{
+  int entryNum, r;
+
+  for (entryNum = 0; entryNum < listSize; ++entryNum)
+    list[entryNum] = -1;
+
+  for (entryNum = 0; entryNum < listSize; ++entryNum)
+    {
+      do
+        r = RANDOM(listSize);
+      while (list[r] != -1);
+
+      list[r] = entryNum;
+    }
+}
+
+#ifdef EMSCRIPTEN
+#ifndef ENABLE_WORKER
+static
+#endif
+void startloop(void) {
+  emscripten_set_main_loop(mainLoop, 1000000/ROTATION_DELAY, 0);
+}
+#else /* !EMSCRIPTEN */
 #define TIMER_INTERVAL (ROTATION_DELAY / 1000)
 static struct {
   SDL_cond *cond;
@@ -195,7 +220,7 @@ int main (int argc, char *argv[])
   disp_init(width, height, disp_flags);
 
 #ifdef EMSCRIPTEN
-  emscripten_set_main_loop(mainLoop, 1000000/ROTATION_DELAY, 1);
+  startloop();
 #else /* !EMSCRIPTEN */
   timer_init();
   while(1) {
@@ -211,6 +236,9 @@ static void mainLoop(void)
   static enum {
     STATE_INITIAL,
     STATE_NEXT,
+#if defined(EMSCRIPTEN) && defined(ENABLE_WORKER)
+    STATE_WAIT,
+#endif /* EMSCRIPTEN && ENABLE_WORKER */
     STATE_DISPLAY,
     STATE_FADEOUT
   } state = STATE_INITIAL;
@@ -247,6 +275,15 @@ static void mainLoop(void)
     }
     SKIP = FALSE;
     ready_to_draw = 1;
+
+#if defined(EMSCRIPTEN) && defined(ENABLE_WORKER)
+    /* The worker has been called. Main loop is cancelled and will be restarted
+     * when worker responds with next image, continuing here.
+     */
+    state = STATE_WAIT;
+    break;
+  case STATE_WAIT:
+#endif /* EMSCRIPTEN && ENABLE_WORKER */
     
     ltime = time(NULL);
     mtime = ltime + image_time;
@@ -321,7 +358,7 @@ void handleinput(enum acidwarp_command cmd)
       if (ROTATION_DELAY < 1)
         ROTATION_DELAY = 1;
       emscripten_cancel_main_loop();
-      emscripten_set_main_loop(mainLoop, 1000000/ROTATION_DELAY, 0);
+      startloop();
 #else // !EMSCRIPTEN
       if (ROTATION_DELAY < 0)
 	ROTATION_DELAY = 0;
@@ -333,7 +370,7 @@ void handleinput(enum acidwarp_command cmd)
       if (ROTATION_DELAY > 1000000)
         ROTATION_DELAY = 1000000;
       emscripten_cancel_main_loop();
-      emscripten_set_main_loop(mainLoop, 1000000/ROTATION_DELAY, 0);
+      startloop();
 #endif
       break;
     }
