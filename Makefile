@@ -83,15 +83,18 @@ $(TARGET): $(OBJECTS)
 	@rm -f $(TARGET)
 	$(LINK) $(LDFLAGS) $(OBJECTS) -o $@ $(LIBS)
 
-acidwarp.o: acidwarp.c handy.h acidwarp.h lut.h bit_map.h \
- palinit.h rolnfade.h warp_text.c display.h gen_img.c
+acid_ico.o: acid_ico.c
+acidwarp.o: acidwarp.c handy.h acidwarp.h rolnfade.h display.h warp_text.c
 bit_map.o: bit_map.c handy.h bit_map.h
+display.o: display.c handy.h acidwarp.h display.h
+draw.o: draw.c handy.h acidwarp.h bit_map.h display.h
+img_float.o: img_float.c handy.h acidwarp.h gen_img.c
+img_int.o: img_int.c handy.h acidwarp.h lut.h gen_img.c
 lut.o: lut.c handy.h lut.h
 palinit.o: palinit.c handy.h acidwarp.h palinit.h
 rolnfade.o: rolnfade.c handy.h acidwarp.h rolnfade.h palinit.h display.h
-display.o: display.c display.h acidwarp.h handy.h
-img_float.o: img_float.c gen_img.c acidwarp.h
-draw.o: draw.c acidwarp.h
+useworker.o: useworker.c handy.h bit_map.h acidwarp.h worker.h display.h
+worker.o: worker.c handy.h bit_map.h acidwarp.h worker.h
 ifneq (,$(findstring CYGWIN,$(PLATFORM)))
 acidwarp.ico: acidwarp.png
 	icotool -c -o $@ $^
