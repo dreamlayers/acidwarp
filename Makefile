@@ -1,5 +1,5 @@
 PREFIX := /usr/local
-CFLAGS := -g -O2 -Wall -Wmissing-prototypes
+CFLAGS := -O3 -Wall -Wmissing-prototypes
 SOURCES := acidwarp.c palinit.c rolnfade.c display.c
 OBJECTS = $(SOURCES:%.c=%.o)
 
