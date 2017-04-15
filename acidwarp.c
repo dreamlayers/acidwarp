@@ -190,6 +190,9 @@ int main (int argc, char *argv[])
     SDL.defaults.opaqueFrontBuffer = false;
     Module.screenIsReadOnly = true;
   });
+  /* Seems Emscripten SDL 1 can't automatically handle this */
+  width = EM_ASM_INT_V({ return document.getElementById('canvas').scrollWidth; });
+  height = EM_ASM_INT_V({ return document.getElementById('canvas').scrollHeight; });
 #endif /* EMSCRIPTEN && !SDL_VERSION_ATLEAST(2,0,0) */
 
   /* Initialize SDL */
