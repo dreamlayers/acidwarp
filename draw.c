@@ -108,7 +108,6 @@ void draw_abort(void) {
       SDL_CondWait(drawdone_cond, draw_mtx);
       abort_draw = 0;
     }
-    drawdone = SDL_FALSE;
     SDL_UnlockMutex(draw_mtx);
   }
 }
@@ -119,13 +118,13 @@ void draw_next(void) {
   while (!drawdone) {
     SDL_CondWait(drawdone_cond, draw_mtx);
   }
-  drawdone = SDL_FALSE;
 
   /* This should actually display what the thread drew */
   disp_swapBuffers();
 
   /* Tell drawing thread it can continue now that buffers are swapped */
   drawnext = SDL_TRUE;
+  drawdone = SDL_FALSE;
   SDL_CondSignal(drawnext_cond);
   SDL_UnlockMutex(draw_mtx);
 }
@@ -133,6 +132,7 @@ void draw_next(void) {
 static void draw_continue(void) {
   SDL_LockMutex(draw_mtx);
   drawnext = SDL_TRUE;
+  drawdone = SDL_FALSE;
   SDL_CondSignal(drawnext_cond);
   SDL_UnlockMutex(draw_mtx);
 }
