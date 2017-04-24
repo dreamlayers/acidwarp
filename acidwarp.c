@@ -279,7 +279,7 @@ static void mainLoop(void)
     /* install a new image */
     draw_next();
 
-    if (state != STATE_INITIAL && !SKIP) {
+    if (!show_logo && !SKIP) {
       newPalette();
     }
     SKIP = FALSE;
