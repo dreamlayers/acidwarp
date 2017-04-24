@@ -7,6 +7,7 @@ OBJECTS = $(SOURCES:%.c=%.o)
 ifeq ($(GL),1)
 # OpenGL ES / WebGL builds require SDL 2
 SDL := 2
+CFLAGS += -DWITH_GL
 else
 SDL := 1
 endif
@@ -62,7 +63,6 @@ LIBS += -lglew32 -lopengl32
 else
 LIBS += -lGL
 endif
-CFLAGS += -DWITH_GL
 endif
 
 ifneq (,$(findstring CYGWIN,$(PLATFORM)))
