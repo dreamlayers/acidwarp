@@ -13,3 +13,5 @@ acid_ico.c
 acidwarp.rgb
 worker.js
 worker.js.mem
+/bin
+/build
