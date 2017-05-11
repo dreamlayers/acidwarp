@@ -20,6 +20,45 @@ option(STATIC "Link statically" ${STATIC_DEFAULT})
 set(CORE_SOURCES acidwarp.c palinit.c rolnfade.c display.c)
 set(IMGGEN_SOURCES bit_map.c lut.c img_int.c img_float.c)
 set(SOURCES ${CORE_SOURCES} ${IMGGEN_SOURCES} draw.c)
+
+# Windows icon, built by converting PNG to ICO
+# and then embedding using resource file.
+if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+    find_program(ICOTOOL icotool)
+    if(ICOTOOL)
+        add_custom_command(OUTPUT ${CMAKE_SOURCE_DIR}/acidwarp.ico
+                           COMMAND icotool -c -o ${CMAKE_SOURCE_DIR}/acidwarp.ico ${CMAKE_SOURCE_DIR}/acidwarp.png
+                           MAIN_DEPENDENCY ${CMAKE_SOURCE_DIR}/acidwarp.png)
+        set(SOURCES ${SOURCES} acid_res.rc)
+        set_source_files_properties(acid_res.rc PROPERTIES OBJECT_DEPENDS ${CMAKE_SOURCE_DIR}/acidwarp.ico)
+    else(ICOTOOL)
+        message(WARNING "Not adding icon to executable because icotool not found.")
+    endif(ICOTOOL)
+endif(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+
+# Icon set via SDL
+find_program(XXD xxd)
+find_program(CONVERT convert)
+# TODO Make sure convert is ImageMagick
+if(XXD AND CONVERT)
+    add_custom_command(OUTPUT ${CMAKE_SOURCE_DIR}/acidwarp.rgb
+                       COMMAND convert ${CMAKE_SOURCE_DIR}/acidwarp.png -sample 64x64 ${CMAKE_SOURCE_DIR}/acidwarp.rgb
+                       MAIN_DEPENDENCY ${CMAKE_SOURCE_DIR}/acidwarp.png)
+    add_custom_command(OUTPUT ${CMAKE_SOURCE_DIR}/acid_ico.c
+                       COMMAND xxd -i acidwarp.rgb > acid_ico.c
+                       MAIN_DEPENDENCY ${CMAKE_SOURCE_DIR}/acidwarp.rgb
+                       WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+    add_definitions(-DADDICON)
+    set(SOURCES ${SOURCES} acid_ico.c)
+else(XXD AND CONVERT)
+    if(NOT CONVERT)
+        message(WARNING "ImageMagick convert is required resize icon for embedding")
+    endif(NOT XXD)
+    if(NOT XXD)
+        message(WARNING "xxd is required to embed icon into code")
+    endif(NOT XXD)
+endif(XXD AND CONVERT)
+
 add_executable(acidwarp ${SOURCES})
 
 if(STATIC)
