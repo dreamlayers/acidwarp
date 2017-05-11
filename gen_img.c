@@ -20,6 +20,8 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
   /* WARNING!!! Major change from long to int.*/
   /* ### Changed back to long. Gives lots of warnings. Will fix soon. */
 
+long x1,x2,x3,x4,y1,y2,y3,y4;
+
 #ifndef ENABLE_FLOAT
   long /* int */ x, y, dx, dy;
   long dist, angle;
@@ -56,7 +58,6 @@ void generate_image(int imageFuncNum, UCHAR *buf_graf,
   /* Some general purpose random angles and offsets.
    * Not all functions use them.
    */
-  long x1,x2,x3,x4,y1,y2,y3,y4;
 
   x1 = RANDOM(40)-20;  x2 = RANDOM(40)-20;
   x3 = RANDOM(40)-20;  x4 = RANDOM(40)-20;

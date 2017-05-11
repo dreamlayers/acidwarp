@@ -1,5 +1,6 @@
 /* Floating point image generator for Acidwarp */
 
+#define _USE_MATH_DEFINES
 #include <math.h>
 #include "handy.h"
 #include "acidwarp.h"
