@@ -97,3 +97,6 @@ else(SDL2)
     include_directories(${SDL_INCLUDE_DIR})
     target_link_libraries(acidwarp ${SDL_LIBRARY})
 endif(SDL2)
+
+# Only needed this in Linux for atan()
+target_link_libraries(acidwarp m)
