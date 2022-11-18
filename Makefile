@@ -15,6 +15,9 @@ endif
 ifdef EMMAKEN_COMPILER
 # Using emmake make to build using Emscripten
 PLATFORM := Emscripten
+else ifneq (,$(findstring mingw,$(CC)))
+PLATFORM := Windows
+WINDRES := $(CC:-gcc=)-windres
 else
 PLATFORM := $(shell uname)
 endif
@@ -58,14 +61,14 @@ LIBS := $(shell $(SDL_CONFIG) --libs) -lm
 ifeq ($(GL),1)
 ifeq ($(PLATFORM),Darwin)
 LIBS += -framework OpenGL
-else ifneq (,$(findstring CYGWIN,$(PLATFORM)))
+else ifeq ($(PLATFORM),Windows)
 LIBS += -lglew32 -lopengl32
 else
 LIBS += -lGL
 endif
 endif
 
-ifneq (,$(findstring CYGWIN,$(PLATFORM)))
+ifeq ($(PLATFORM),Windows)
 EXESUFFIX = .exe
 CC := i686-w64-mingw32-gcc
 OBJECTS += acid_res.o
@@ -95,11 +98,11 @@ palinit.o: palinit.c handy.h acidwarp.h palinit.h
 rolnfade.o: rolnfade.c handy.h acidwarp.h rolnfade.h palinit.h display.h
 useworker.o: useworker.c handy.h bit_map.h acidwarp.h worker.h display.h
 worker.o: worker.c handy.h bit_map.h acidwarp.h worker.h
-ifneq (,$(findstring CYGWIN,$(PLATFORM)))
+ifeq ($(PLATFORM),Windows)
 acidwarp.ico: acidwarp.png
 	icotool -c -o $@ $^
 acid_res.o: acid_res.rc acidwarp.ico
-	windres $< $@
+	$(WINDRES) $< $@
 endif
 # Using ImageMagick to nearest neighbour resize icon for SDL.
 # Without it, you can manually do this in another program.
