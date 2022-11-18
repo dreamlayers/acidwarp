@@ -4,6 +4,10 @@ SOURCES := acidwarp.c palinit.c rolnfade.c display.c
 IMGGEN_SOURCES := bit_map.c lut.c img_int.c img_float.c
 OBJECTS = $(SOURCES:%.c=%.o)
 
+ifeq ($(STATIC),1)
+CFLAGS += -DGLEW_STATIC -static
+endif
+
 ifeq ($(GL),1)
 # OpenGL ES / WebGL builds require SDL 2
 SDL := 2
@@ -57,7 +61,11 @@ SOURCES += acid_ico.c
 endif
 
 CFLAGS += $(shell $(SDL_CONFIG) --cflags)
+ifeq ($(STATIC),1)
+LIBS := $(shell $(SDL_CONFIG) --static-libs) -lm
+else
 LIBS := $(shell $(SDL_CONFIG) --libs) -lm
+endif
 ifeq ($(GL),1)
 ifeq ($(PLATFORM),Darwin)
 LIBS += -framework OpenGL
