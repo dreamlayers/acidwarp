@@ -24,10 +24,13 @@ typedef enum {FALSE, TRUE} BOOL;
  */
 #define RANDOM(a) (rand() / (RAND_MAX / (a) + 1))
 
+#if 0
+/* Unused, won't compile on recent gcc due to multiple definitions */
 /* Mini-benchmarking tools. Only one second accuracy */
 time_t __HANDY_BENCH;
 #define START() (__HANDY_BENCH = time (& __HANDY_BENCH))
 #define MARK()  ((long)time ((time_t *)0) - __HANDY_BENCH)
+#endif
 
 /* Stuff that's already there, but is faster as a MACRO */
 #define MIN(a,b)  (((a) < (b)) ?  (a) : (b) )
