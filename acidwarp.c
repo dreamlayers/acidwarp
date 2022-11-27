@@ -40,7 +40,6 @@ static int width = 0, height = 0;
 static int width = 320, height = 200;
 #endif
 UCHAR *buf_graf = NULL;
-unsigned int buf_graf_stride = 0;
 static int GO = TRUE;
 static int SKIP = FALSE;
 static int NP = FALSE; /* flag indicates new palette */
