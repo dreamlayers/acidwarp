@@ -33,6 +33,7 @@ SDL_CONFIG := sdl-config
 endif
 
 ifeq ($(PLATFORM),Emscripten)
+ifeq ($(WORKER),1)
 WORKER_SOURCES := $(IMGGEN_SOURCES) worker.c
 WORKER_LDFLAGS := $(CFLAGS) -s BUILD_AS_WORKER=1
 WORKER_OBJECTS := $(WORKER_SOURCES:%.c=%.o)
@@ -41,6 +42,10 @@ all: worker.js
 worker.js: $(WORKER_OBJECTS)
 	@rm -f $@
 	$(LINK) $(WORKER_LDFLAGS) $^ -o $@
+else
+SOURCES += $(IMGGEN_SOURCES) draw.c
+endif
+
 CC = emcc
 ifeq ($(SDL),2)
 CFLAGS += -s USE_SDL=2
