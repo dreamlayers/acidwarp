@@ -2,6 +2,7 @@
 acidwarp
 acidwarp.exe
 acidwarp.js
+acidwarp.wasm
 acidwarp.html
 acidwarp.html.mem
 test_tables
@@ -12,6 +13,7 @@ acidwarp.ico
 acid_ico.c
 acidwarp.rgb
 worker.js
+worker.wasm
 worker.js.mem
 /bin
 /build

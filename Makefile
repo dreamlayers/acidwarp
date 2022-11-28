@@ -129,7 +129,8 @@ acid_ico.c: acidwarp.rgb
 
 clean:
 	$(RM) *.o $(TARGET) acidwarp.ico acidwarp.rgb acid_ico.c \
-          acidwarp.html.mem acidwarp.js worker.js worker.js.mem
+          acidwarp.html.mem acidwarp.js worker.js worker.js.mem \
+          acidwarp.wasm worker.wasm
 
 install: $(TARGET) acidwarp.png acidwarp.desktop
 	install $< $(PREFIX)/bin
