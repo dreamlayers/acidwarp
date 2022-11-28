@@ -13,7 +13,9 @@
  * In either case, after the response, the next image is generated.
  */
 EMSCRIPTEN_KEEPALIVE
-static void draw(char *data, int size)
+void draw(char *data, int size); /* Don't complain about lack of prototype */
+EMSCRIPTEN_KEEPALIVE
+void draw(char *data, int size)
 {
   static worker_param param = { 0 };
   worker_param newparam;

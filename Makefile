@@ -33,6 +33,7 @@ SDL_CONFIG := sdl-config
 endif
 
 ifeq ($(PLATFORM),Emscripten)
+WORKER ?= 1
 ifeq ($(WORKER),1)
 WORKER_SOURCES := $(IMGGEN_SOURCES) worker.c
 WORKER_LDFLAGS := $(CFLAGS) -s BUILD_AS_WORKER=1
